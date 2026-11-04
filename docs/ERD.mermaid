@@ -1,0 +1,112 @@
+erDiagram
+    %% USER & AUTHORIZATION
+    USERS {
+        uuid id PK
+        string email UK
+        string password_hash
+        string full_name
+        enum role "superuser | admin | user"
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    SESSIONS {
+        uuid id PK
+        uuid user_id FK
+        string token UK "SHA-256 hash of the cookie value"
+        timestamp expires_at
+        timestamp created_at
+    }
+
+    AUTH_ATTEMPTS {
+        string key PK "action:ip-or-email"
+        timestamp window_start
+        integer count
+    }
+
+    %% NEWS MANAGEMENT
+    NEWS {
+        uuid id PK
+        string slug UK
+        string cover_image_url
+        enum status "draft | published | archived"
+        uuid author_id FK
+        timestamp published_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    NEWS_TRANSLATIONS {
+        uuid id PK
+        uuid news_id FK
+        enum locale "en | kk | ru"
+        string title
+        text content
+    }
+
+    %% ARCHIVES MANAGEMENT
+    ARCHIVES {
+        uuid id PK
+        string file_url
+        string file_type
+        integer file_size
+        uuid uploaded_by FK
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    ARCHIVE_TRANSLATIONS {
+        uuid id PK
+        uuid archive_id FK
+        enum locale "en | kk | ru"
+        string title
+        text description
+    }
+
+    %% DYNAMIC GOOGLE SHEETS APPLICATIONS
+    APPLICATION_FORMS {
+        uuid id PK
+        string title
+        string google_sheet_id
+        string sheet_name
+        string key_column "Sheet column holding a stable row id"
+        jsonb schema_definition "Headers/fields, each flagged public true/false"
+        boolean is_active
+        timestamp last_synced_at
+        uuid created_by FK
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    APPLICATIONS {
+        uuid id PK
+        uuid form_id FK
+        string external_key "Stable id from key_column, unique per form"
+        integer row_number "Display order only, shifts when Sheet is edited"
+        jsonb data "Dynamic key-value pairs from sheet columns"
+        timestamp removed_at "Set when the row disappears from the Sheet"
+        timestamp parsed_at
+        timestamp updated_at
+    }
+
+    APPLICATION_SUBMISSIONS {
+        uuid id PK
+        uuid user_id FK
+        uuid application_id FK
+        enum status "pending | reviewed | accepted | rejected"
+        jsonb data_snapshot "Listing data as it was when the user applied"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% RELATIONSHIPS
+    USERS ||--o{ SESSIONS : "has"
+    USERS ||--o{ NEWS : "authors"
+    USERS ||--o{ ARCHIVES : "uploads"
+    USERS ||--o{ APPLICATION_FORMS : "creates/configures"
+    USERS ||--o{ APPLICATION_SUBMISSIONS : "submits"
+    NEWS ||--o{ NEWS_TRANSLATIONS : "translated into"
+    ARCHIVES ||--o{ ARCHIVE_TRANSLATIONS : "translated into"
+    APPLICATION_FORMS ||--o{ APPLICATIONS : "contains"
+    APPLICATIONS ||--o{ APPLICATION_SUBMISSIONS : "receives"
