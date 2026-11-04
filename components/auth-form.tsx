@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import type { Dict } from "@/app/[lang]/dictionaries/en";
+import { useHydrated } from "./use-hydrated";
 
 /** Only same-site paths: blocks open redirects through ?next=. */
 function safeNext(next: string | null, fallback: string) {
@@ -16,6 +17,7 @@ export function AuthForm({ mode, lang, t }: { mode: "login" | "register"; lang: 
   const [error, setError] = useState<string | null>(null);
   const [fields, setFields] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const hydrated = useHydrated();
   const register = mode === "register";
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -66,7 +68,7 @@ export function AuthForm({ mode, lang, t }: { mode: "login" | "register"; lang: 
   );
 
   return (
-    <form onSubmit={submit} className="grid gap-5 border-[2.5px] border-ink bg-stock-lit p-6 md:p-8" noValidate={false}>
+    <form onSubmit={submit} method="post" className="grid gap-5 border-[2.5px] border-ink bg-stock-lit p-6 md:p-8">
       {register && field("fullName", t.auth.fullName, "text", { autoComplete: "name", maxLength: 200 })}
       {field("email", t.auth.email, "email", { autoComplete: "email", maxLength: 320 })}
       {field("password", t.auth.password, "password", {
@@ -80,7 +82,7 @@ export function AuthForm({ mode, lang, t }: { mode: "login" | "register"; lang: 
           {error}
         </p>
       )}
-      <button type="submit" disabled={busy} className="field field-solid label min-h-14 justify-center text-lg disabled:opacity-70">
+      <button type="submit" disabled={busy || !hydrated} className="field field-solid label min-h-14 justify-center text-lg disabled:opacity-70">
         {busy ? t.auth.sending : register ? t.auth.submitRegister : t.auth.submitLogin}
       </button>
       <p>

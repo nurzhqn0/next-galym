@@ -51,7 +51,7 @@ export async function getSessionUser(token: string): Promise<SessionUser | null>
     .select({ id: users.id, email: users.email, fullName: users.fullName, role: users.role })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
-    .where(and(eq(sessions.token, sha256(token)), gt(sessions.expiresAt, new Date()), eq(users.isActive, true)));
+    .where(and(eq(sessions.token, sha256(token)), gt(sessions.expiresAt, sql`now()`), eq(users.isActive, true)));
   return row ?? null;
 }
 

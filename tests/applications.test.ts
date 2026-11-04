@@ -92,4 +92,16 @@ describe("applications", () => {
     await expect(syncForm(form.id, fixture(csv(["title"], [["x"]])))).rejects.toMatchObject({ status: 422 });
     expect(await listListings(100, 0, form.id)).toHaveLength(2);
   });
+
+  it("returns a submission's snapshot in sheet column order, not jsonb key order", async () => {
+    const admin = await makeUser("admin");
+    const form = await makeForm(admin, "id");
+    // jsonb would sort these as id, name, level; the sheet order is name, level, id.
+    await syncForm(form.id, fixture(csv(["name", "level", "id"], [["Grant A", "PhD", "a"]])));
+    await updateForm(form.id, { publicColumns: ["name", "level", "id"] });
+    const [row] = await db.select().from(applications).where(eq(applications.formId, form.id));
+    const user = await makeUser();
+    await applyTo(user.id, row.id);
+    expect(Object.keys((await listMySubmissions(user.id))[0].data)).toEqual(["name", "level", "id"]);
+  });
 });

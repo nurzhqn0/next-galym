@@ -72,6 +72,13 @@ export async function applyTo(userId: string, applicationId: string) {
   }
 }
 
+/** jsonb returns keys sorted by length, not in sheet order; put them back in column order. */
+function inColumnOrder(data: Record<string, string>, schema: Columns) {
+  const known = schema.columns.filter((c) => c.header in data).map((c) => c.header);
+  const rest = Object.keys(data).filter((k) => !known.includes(k));
+  return Object.fromEntries([...known, ...rest].map((k) => [k, data[k]]));
+}
+
 export async function listMySubmissions(userId: string) {
   const rows = await db
     .select({ s: applicationSubmissions, application: applications, form: applicationForms })
@@ -85,7 +92,7 @@ export async function listMySubmissions(userId: string) {
     applicationId: r.s.applicationId,
     formTitle: r.form.title,
     status: r.s.status,
-    data: r.s.dataSnapshot,
+    data: inColumnOrder(r.s.dataSnapshot, r.form.schemaDefinition),
     listingRemoved: r.application.removedAt !== null,
     createdAt: r.s.createdAt,
   }));

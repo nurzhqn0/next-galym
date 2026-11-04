@@ -2,12 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useHydrated } from "./use-hydrated";
 
 type Labels = { apply: string; applying: string; applied: string; loginToApply: string; error: string; removed: string };
 
 /** Filling the bubble is applying. 401 sends the visitor to log in first. */
 export function ApplyButton({ applicationId, lang, labels, name }: { applicationId: string; lang: string; labels: Labels; name: string }) {
   const router = useRouter();
+  const hydrated = useHydrated();
   const [state, setState] = useState<"idle" | "sending" | "done" | "error" | "gone">("idle");
 
   async function apply() {
@@ -34,7 +36,7 @@ export function ApplyButton({ applicationId, lang, labels, name }: { application
       <button
         type="button"
         onClick={apply}
-        aria-disabled={state === "sending" || done || state === "gone"}
+        aria-disabled={!hydrated || state === "sending" || done || state === "gone"}
         aria-label={`${text}: ${name}`}
         className="choose label inline-flex min-h-11 items-center gap-3 text-lg aria-disabled:cursor-default"
       >
