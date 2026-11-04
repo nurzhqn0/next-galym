@@ -1,3 +1,4 @@
+import { revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guard";
 import { body, pagination, query, route } from "@/lib/http";
 import { createNews, listAdminNews, newsCreate } from "@/lib/services/news";
@@ -10,5 +11,7 @@ export const GET = route(async (req) => {
 
 export const POST = route(async (req) => {
   const admin = await requireAdmin();
-  return createNews(await body(req, newsCreate), admin.id);
+  const created = await createNews(await body(req, newsCreate), admin.id);
+  revalidateTag("news", "max");
+  return created;
 }, 201);

@@ -1,26 +1,285 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/* The Answer Sheet: gold carbon-copy stock, printed in one crimson ink. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-stock: #ffd576;
+  --color-stock-lit: #ffe6a6;
+  --color-stock-deep: #f2bb4e;
+  --color-ink: #a8042b;
+  --color-ink-deep: #2a0610;
+  --font-label: var(--font-fira-xc), "Arial Narrow", sans-serif;
+  --font-body: var(--font-fira), system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
+:root {
+  --track: 12px;
+  color-scheme: light;
+}
+@media (max-width: 767px) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --track: 8px;
+  }
+}
+
+html {
+  background: var(--color-stock);
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-stock);
+  color: var(--color-ink-deep);
+  font-family: var(--font-body);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  caret-color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: break-word;
+}
+
+/* Kazakh and Russian carry tall tails (Қ, Ғ, Д, Щ): open the display leading. */
+:lang(kk) .display,
+:lang(ru) .display {
+  line-height: 1;
+}
+
+/* Timing track: the column of black marks down the edge of every answer sheet. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--track);
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--color-ink-deep) 0 10px,
+    transparent 10px 22px
+  );
+  pointer-events: none;
+  z-index: 40;
+}
+
+::selection {
+  background: var(--color-ink);
+  color: var(--color-stock);
+}
+:focus-visible {
+  outline: 3px solid var(--color-ink-deep);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+.on-ink :focus-visible {
+  outline-color: var(--color-stock);
+}
+a {
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: 2px;
+}
+
+/* Scrollbar in the sheet's colours (browsers that support it). */
+* {
+  scrollbar-color: var(--color-ink) var(--color-stock-deep);
+}
+
+@layer components {
+  .label {
+    font-family: var(--font-label);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    line-height: 1.1;
+  }
+  .display {
+    font-family: var(--font-label);
+    font-weight: 800;
+    text-transform: uppercase;
+    line-height: 0.92;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
+  /* A printed field: ruled box, lit stock inside. */
+  .field {
+    border: 2.5px solid var(--color-ink);
+    background: var(--color-stock-lit);
+    color: var(--color-ink);
+    min-height: 44px;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 0.9rem;
+    transition: background-color 140ms ease-out, color 140ms ease-out;
+  }
+  a.field:hover,
+  button.field:hover {
+    background: var(--color-ink);
+    color: var(--color-stock);
+  }
+  .field[aria-current="page"],
+  .field-solid {
+    background: var(--color-ink);
+    color: var(--color-stock);
+  }
+  .on-ink .field {
+    border-color: var(--color-stock);
+    background: transparent;
+    color: var(--color-stock);
+  }
+  .on-ink .field-solid {
+    background: var(--color-stock);
+    color: var(--color-ink);
+  }
+  .on-ink a.field-solid:hover {
+    background: var(--color-stock-lit);
+  }
+  .on-ink a.field:hover {
+    background: var(--color-stock);
+    color: var(--color-ink);
+  }
+
+  /* The bubble: unfilled until chosen, solid crimson when filled. */
+  .bubble {
+    --size: 44px;
+    width: var(--size);
+    height: var(--size);
+    flex: none;
+    border: 2.5px solid currentColor;
+    border-radius: 50%;
+    display: inline-grid;
+    place-items: center;
+    font-family: var(--font-label);
+    font-weight: 800;
+    font-size: 1.05rem;
+    transition: background-color 160ms ease-out, color 160ms ease-out, transform 160ms ease-out;
+  }
+  .bubble[data-filled="true"] {
+    background: var(--color-ink);
+    border-color: var(--color-ink);
+    color: var(--color-stock);
+  }
+  .choose:hover .bubble:not([data-filled="true"]),
+  .choose:focus-visible .bubble:not([data-filled="true"]) {
+    background: color-mix(in oklab, var(--color-ink) 18%, transparent);
+  }
+  .on-ink .choose:hover .bubble:not([data-filled="true"]) {
+    background: color-mix(in oklab, var(--color-stock) 24%, transparent);
+  }
+  .choose:active .bubble {
+    transform: scale(0.94);
+  }
+  .on-ink .bubble[data-filled="true"] {
+    background: var(--color-stock);
+    border-color: var(--color-stock);
+    color: var(--color-ink);
+  }
+
+  /* Comb cells: the empty boxed digits of a score field. */
+  .comb {
+    display: inline-flex;
+    gap: 6px;
+  }
+  .comb > span {
+    width: 2.4rem;
+    height: 3.2rem;
+    border: 2.5px solid var(--color-ink);
+    background: var(--color-stock-lit);
+  }
+
+  .comb-lg > span {
+    width: clamp(3.2rem, 9vw, 5.5rem);
+    height: clamp(4.2rem, 12vw, 7.2rem);
+    border-width: 3px;
+  }
+
+  .stamp[data-status="pending"] {
+    border-style: dashed;
+  }
+  .stamp[data-status="accepted"] {
+    background: var(--color-ink);
+    color: var(--color-stock);
+  }
+  .stamp[data-status="rejected"] {
+    border-style: double;
+    border-width: 5px;
+  }
+  .stamp {
+    display: inline-block;
+    border: 2.5px solid var(--color-ink);
+    color: var(--color-ink);
+    padding: 0.2rem 0.55rem;
+    transform: rotate(-3deg);
+    font-family: var(--font-label);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.85rem;
+    line-height: 1.1;
+  }
+
+  /* Registration crosshair printed at a sheet's corners. */
+  .crosshair {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    pointer-events: none;
+    background:
+      linear-gradient(var(--color-ink), var(--color-ink)) center / 2px 100% no-repeat,
+      linear-gradient(var(--color-ink), var(--color-ink)) center / 100% 2px no-repeat;
+  }
+  .crosshair::after {
+    content: "";
+    position: absolute;
+    inset: 5px;
+    border: 2px solid var(--color-ink);
+    border-radius: 50%;
+  }
+
+  .rule {
+    border-top: 2.5px solid var(--color-ink);
+  }
+  .on-ink .rule {
+    border-color: var(--color-stock);
+  }
+
+  .input {
+    width: 100%;
+    min-height: 48px;
+    border: 2.5px solid var(--color-ink);
+    background: var(--color-stock-lit);
+    color: var(--color-ink-deep);
+    padding: 0.5rem 0.8rem;
+    font: inherit;
+    border-radius: 0;
+  }
+  .input:focus-visible {
+    background: #fff3cc;
+    outline-offset: 2px;
+  }
+  .input[aria-invalid="true"] {
+    border-style: dashed;
+    background: #ffd0c8;
+  }
+}
+
+/* One authored moment: the first answer row prints in, bubble last. */
+@media (prefers-reduced-motion: no-preference) {
+  .print-in {
+    animation: print-in 520ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    animation-delay: calc(var(--i, 0) * 90ms);
+  }
+  @keyframes print-in {
+    from {
+      clip-path: inset(0 100% 0 0);
+      opacity: 0.2;
+    }
+    to {
+      clip-path: inset(0 0 0 0);
+      opacity: 1;
+    }
+  }
 }

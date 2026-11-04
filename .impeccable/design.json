@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-04T00:00:00Z",
+  "title": "Design System: Next Galym",
+  "extensions": {
+    "colorMeta": {
+      "ink": {"role":"primary","displayName":"Printed Crimson","canonical":"#a8042b","tonalRamp":["#2a0610","#4a0518","#6b0420","#8a0426","#a8042b","#c4425f","#dc8095","#f0c0cc"]},
+      "stock": {"role":"neutral","displayName":"Carbon Gold","canonical":"#ffd576","tonalRamp":["#a8791a","#c8962c","#e0ac3c","#f2bb4e","#ffd576","#ffe6a6","#fff3cc","#fffae6"]},
+      "stock-lit": {"role":"neutral","displayName":"Lit Stock","canonical":"#ffe6a6","tonalRamp":["#f2bb4e","#ffd576","#ffe6a6","#fff3cc"]},
+      "ink-deep": {"role":"neutral","displayName":"Crimson Black","canonical":"#2a0610","tonalRamp":["#2a0610"]}
+    },
+    "typographyMeta": {
+      "display": {"displayName":"Display","purpose":"Uppercase page and hero headlines."},
+      "label": {"displayName":"Label","purpose":"Nav, fields, numerals, meta terms."},
+      "body": {"displayName":"Body","purpose":"Running text, 1.0625rem."}
+    },
+    "shadows": [],
+    "motion": [
+      {"name":"print-in","value":"520ms cubic-bezier(0.16, 1, 0.3, 1), 90ms stagger","purpose":"Answer rows wipe in left to right."},
+      {"name":"fill","value":"140-160ms ease-out","purpose":"Field and bubble fill inversion."}
+    ],
+    "breakpoints": [{"name":"md","value":"768px"},{"name":"xl","value":"1280px"}]
+  },
+  "components": [
+    {"name":"Field","kind":"button","refersTo":"field","description":"Ruled nav or action box; inverts on hover.","html":"<a class=\"ds-field\">APPLICATIONS</a>","css":".ds-field{display:inline-flex;align-items:center;min-height:44px;padding:0 .9rem;border:2.5px solid var(--color-ink);background:var(--color-stock-lit);color:var(--color-ink);font-family:var(--font-label);font-weight:700;text-transform:uppercase;letter-spacing:.06em;transition:background-color 140ms ease-out,color 140ms ease-out}.ds-field:hover{background:var(--color-ink);color:var(--color-stock)}.ds-field:focus-visible{outline:3px solid var(--color-ink-deep);outline-offset:3px}"},
+    {"name":"Solid Field","kind":"button","refersTo":"field-solid","description":"Primary action, crimson fill.","html":"<a class=\"ds-field-solid\">LOG IN</a>","css":".ds-field-solid{display:inline-flex;align-items:center;min-height:44px;padding:0 .9rem;border:2.5px solid var(--color-ink);background:var(--color-ink);color:var(--color-stock);font-family:var(--font-label);font-weight:700;text-transform:uppercase;letter-spacing:.06em}"},
+    {"name":"Bubble","kind":"custom","refersTo":"bubble","description":"Fill-in choice circle.","html":"<span class=\"ds-bubble\">1</span>","css":".ds-bubble{width:44px;height:44px;border:2.5px solid var(--color-ink);border-radius:50%;display:inline-grid;place-items:center;color:var(--color-ink);font-family:var(--font-label);font-weight:800}"},
+    {"name":"Input","kind":"input","refersTo":"input","description":"Ruled square text field.","html":"<input class=\"ds-input\" value=\"Aigerim\">","css":".ds-input{width:100%;min-height:48px;border:2.5px solid var(--color-ink);background:var(--color-stock-lit);color:var(--color-ink-deep);padding:.5rem .8rem;border-radius:0;font:inherit}.ds-input:focus-visible{background:#fff3cc;outline:3px solid var(--color-ink-deep);outline-offset:2px}"},
+    {"name":"Stamp","kind":"chip","refersTo":"stamp","description":"Status mark, tilted.","html":"<span class=\"ds-stamp\">ACCEPTED</span>","css":".ds-stamp{display:inline-block;border:2.5px solid var(--color-ink);background:var(--color-ink);color:var(--color-stock);padding:.2rem .55rem;transform:rotate(-3deg);font-family:var(--font-label);font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:.85rem}"},
+    {"name":"Comb cells","kind":"custom","refersTo":"stamp","description":"Empty boxed score digits.","html":"<span class=\"ds-comb\"><span></span><span></span><span></span></span>","css":".ds-comb{display:inline-flex;gap:6px}.ds-comb>span{width:2.4rem;height:3.2rem;border:2.5px solid var(--color-ink);background:var(--color-stock-lit)}"}
+  ],
+  "narrative": {
+    "northStar": "The Answer Sheet",
+    "overview": "A gold carbon-copy answer sheet printed in a single crimson ink: ruled fields, bubbles, comb cells, stamps, a timing track and crosshairs, flat, with one drenched crimson band.",
+    "keyCharacteristics": ["One ink, one stock","Square, ruled, flat","Condensed uppercase labels over humanist body","Kazakh, Russian, English first-class"],
+    "rules": [
+      {"name":"The One Ink Rule","body":"Only crimson prints. No second accent hue.","section":"colors"},
+      {"name":"The Inversion Rule","body":"On a crimson band (.on-ink) crimson and gold swap roles wholesale.","section":"colors"},
+      {"name":"The Real Letters Rule","body":"Any face added must be checked to contain all Kazakh letters.","section":"typography"},
+      {"name":"The Printed, Not Lifted Rule","body":"Separate things with a rule, a box, or a fill change; never a shadow or a blur.","section":"elevation"}
+    ],
+    "dos": ["Do keep everything in crimson #a8042b on gold #ffd576, with #2a0610 for running text.","Do build controls from ruled boxes (2.5px) and invert fill on hover.","Do wrap crimson bands in .on-ink.","Do respect prefers-reduced-motion.","Do keep touch targets at least 44px."],
+    "donts": ["Don't add shadows, blurs, or rounded cards.","Don't introduce a second accent hue or a new face without checking Kazakh coverage.","Don't let the timing track be covered or crowded."]
+  }
+}
