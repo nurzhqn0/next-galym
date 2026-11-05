@@ -14,8 +14,21 @@ function createPool() {
   return pool;
 }
 
-const pool = globalForDb.pgPool ?? createPool();
-if (process.env.NODE_ENV !== "production") globalForDb.pgPool = pool;
+type Db = ReturnType<typeof createDb>;
 
-export const db = drizzle(pool, { schema });
+function createDb() {
+  const pool = globalForDb.pgPool ?? createPool();
+  if (process.env.NODE_ENV !== "production") globalForDb.pgPool = pool;
+  return drizzle(pool, { schema });
+}
+
+// Lazy: the pool is created on first query, so `next build` works without DATABASE_URL.
+let instance: Db | undefined;
+export const db = new Proxy({} as Db, {
+  get(_t, prop) {
+    instance ??= createDb();
+    const value = Reflect.get(instance, prop);
+    return typeof value === "function" ? value.bind(instance) : value;
+  },
+});
 export { schema };
