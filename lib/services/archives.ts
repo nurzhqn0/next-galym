@@ -1,4 +1,4 @@
-import { count, desc, eq, inArray } from "drizzle-orm";
+import { and, count, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { archives, archiveTranslations } from "@/lib/db/schema";
@@ -14,6 +14,8 @@ const optionalTranslations = z.object({
   kk: translation.optional(),
   ru: translation.optional(),
 });
+// On edit, null removes a translation. English cannot be removed: it is the fallback.
+const editTranslations = optionalTranslations.extend({ kk: translation.nullish(), ru: translation.nullish() });
 const file = {
   fileUrl: z.httpUrl(),
   fileType: z.string().min(1).max(120),
@@ -28,7 +30,7 @@ export const archiveUpdate = z.object({
   fileUrl: file.fileUrl.optional(),
   fileType: file.fileType.optional(),
   fileSize: file.fileSize.optional(),
-  translations: optionalTranslations.optional(),
+  translations: editTranslations.optional(),
 });
 
 // `exec` is the open transaction when there is one: reading through `db` would miss uncommitted writes.
@@ -57,24 +59,29 @@ export async function listArchives(lang: Locale, limit: number, offset: number) 
   });
 }
 
+// Admin reads load each document with its translations in one query: one database round trip, not two.
 export async function listAdminArchives(limit: number, offset: number) {
-  const [rows, [{ n: total }]] = await Promise.all([
-    db.select().from(archives).orderBy(desc(archives.createdAt)).limit(limit).offset(offset),
+  const [items, [{ n: total }]] = await Promise.all([
+    db.query.archives.findMany({ orderBy: desc(archives.createdAt), limit, offset, with: { translations: true } }),
     db.select({ n: count() }).from(archives),
   ]);
-  return { items: await withTranslations(rows), total };
+  return { items, total };
 }
 
 export async function getAdminArchive(id: string) {
-  const [row] = await db.select().from(archives).where(eq(archives.id, id));
+  const row = await db.query.archives.findFirst({ where: eq(archives.id, id), with: { translations: true } });
   if (!row) throw new HttpError(404, "Archive not found");
-  return (await withTranslations([row]))[0];
+  return row;
 }
 
-async function upsertTranslations(tx: Pick<typeof db, "insert">, archiveId: string, t: z.infer<typeof optionalTranslations>) {
+async function upsertTranslations(tx: Pick<typeof db, "insert" | "delete">, archiveId: string, t: z.infer<typeof editTranslations>) {
   for (const l of locales) {
     const v = t[l];
-    if (!v) continue;
+    if (v === undefined) continue;
+    if (v === null) {
+      await tx.delete(archiveTranslations).where(and(eq(archiveTranslations.archiveId, archiveId), eq(archiveTranslations.locale, l)));
+      continue;
+    }
     await tx
       .insert(archiveTranslations)
       .values({ archiveId, locale: l, title: v.title, description: v.description ?? null })

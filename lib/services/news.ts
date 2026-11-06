@@ -11,6 +11,8 @@ const optionalTranslations = z.object({
   kk: translation.optional(),
   ru: translation.optional(),
 });
+// On edit, null removes a translation. English cannot be removed: it is the fallback.
+const editTranslations = optionalTranslations.extend({ kk: translation.nullish(), ru: translation.nullish() });
 const status = z.enum(["draft", "published", "archived"]);
 const slug = z.string().max(200).regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Lowercase letters, digits and dashes only");
 
@@ -24,7 +26,7 @@ export const newsUpdate = z.object({
   slug: slug.optional(),
   status: status.optional(),
   coverImageUrl: z.httpUrl().nullish(),
-  translations: optionalTranslations.optional(),
+  translations: editTranslations.optional(),
 });
 
 // `exec` is the open transaction when there is one: reading through `db` would miss uncommitted writes.
@@ -60,24 +62,29 @@ export async function getPublicNews(slugValue: string, lang: Locale) {
   return publicShape((await withTranslations([row]))[0], lang);
 }
 
+// Admin reads load each post with its translations in one query: one database round trip, not two.
 export async function listAdminNews(limit: number, offset: number) {
-  const [rows, [{ n: total }]] = await Promise.all([
-    db.select().from(news).orderBy(desc(news.createdAt)).limit(limit).offset(offset),
+  const [items, [{ n: total }]] = await Promise.all([
+    db.query.news.findMany({ orderBy: desc(news.createdAt), limit, offset, with: { translations: true } }),
     db.select({ n: count() }).from(news),
   ]);
-  return { items: await withTranslations(rows), total };
+  return { items, total };
 }
 
 export async function getAdminNews(id: string) {
-  const [row] = await db.select().from(news).where(eq(news.id, id));
+  const row = await db.query.news.findFirst({ where: eq(news.id, id), with: { translations: true } });
   if (!row) throw new HttpError(404, "News not found");
-  return (await withTranslations([row]))[0];
+  return row;
 }
 
-async function upsertTranslations(tx: Pick<typeof db, "insert">, newsId: string, t: z.infer<typeof optionalTranslations>) {
+async function upsertTranslations(tx: Pick<typeof db, "insert" | "delete">, newsId: string, t: z.infer<typeof editTranslations>) {
   for (const l of locales) {
     const v = t[l];
-    if (!v) continue;
+    if (v === undefined) continue;
+    if (v === null) {
+      await tx.delete(newsTranslations).where(and(eq(newsTranslations.newsId, newsId), eq(newsTranslations.locale, l)));
+      continue;
+    }
     await tx
       .insert(newsTranslations)
       .values({ newsId, locale: l, ...v })

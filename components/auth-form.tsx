@@ -33,7 +33,10 @@ export function AuthForm({ mode, lang, t }: { mode: "login" | "register"; lang: 
         body: JSON.stringify(data),
       });
       if (res.ok) {
-        router.push(safeNext(params.get("next"), `/${lang}/applications`));
+        // Admins and the superuser start on the admin page; everyone else on the applications.
+        const user: { role?: string } | null = await res.json().catch(() => null);
+        const home = user?.role && user.role !== "user" ? `/${lang}/admin/news` : `/${lang}/applications`;
+        router.push(safeNext(params.get("next"), home));
         router.refresh();
         return;
       }

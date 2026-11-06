@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it } from "vitest";
-import { createNews, getPublicNews, listPublicNews, newsCreate, updateNews } from "@/lib/services/news";
+import { createNews, getAdminNews, getPublicNews, listAdminNews, listPublicNews, newsCreate, newsUpdate, updateNews } from "@/lib/services/news";
 import { cleanup, makeUser, PREFIX } from "./helpers";
 
 afterAll(cleanup);
@@ -24,6 +24,18 @@ describe("news", () => {
     const list = await listPublicNews("en", 100, 0);
     expect(list.map((n) => n.slug)).toContain(`${slug}-b`);
     expect(list.map((n) => n.slug)).not.toContain(slug);
+  });
+
+  it("null removes a translation on edit; English cannot be removed", async () => {
+    const admin = await makeUser("admin");
+    const n = await createNews({ slug: `${PREFIX}-rm-${Date.now()}`, status: "published", translations: { en: tr("EN"), ru: tr("RU") } }, admin.id);
+    const updated = await updateNews(n.id, { translations: { ru: null } });
+    expect(updated.translations.map((x) => x.locale)).toEqual(["en"]);
+    expect((await getPublicNews(n.slug, "ru")).locale).toBe("en");
+    expect((await getAdminNews(n.id)).translations.map((x) => x.title)).toEqual(["EN"]);
+    const listed = (await listAdminNews(100, 0)).items.find((x) => x.id === n.id);
+    expect(listed?.translations.map((x) => x.locale)).toEqual(["en"]);
+    expect(newsUpdate.safeParse({ translations: { en: null } }).success).toBe(false);
   });
 
   it("duplicate slug is 409", async () => {

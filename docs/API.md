@@ -39,12 +39,12 @@ All routes need an admin session.
 ### News: `/admin/news`
 - `GET ?limit&offset` list with all translations. `GET /:id`.
 - `POST` `{ slug, status?: draft|published|archived, coverImageUrl?, translations: { en (required), kk?, ru? : { title, content } } }`.
-- `PATCH /:id` any subset of the same fields. `DELETE /:id`.
+- `PATCH /:id` any subset of the same fields; `kk: null` or `ru: null` in `translations` removes that translation (English cannot be removed). `DELETE /:id`.
 
 ### Archives: `/admin/archives`
 - `GET ?limit&offset`, `GET /:id`.
 - `POST` `{ fileUrl, fileType, fileSize, translations: { en (required), kk?, ru? : { title, description? } } }`.
-- `PATCH /:id`, `DELETE /:id`. Files are linked by URL for now; there is no upload endpoint yet.
+- `PATCH /:id` any subset; `kk: null` or `ru: null` removes that translation, as for news. `DELETE /:id`. Files are linked by URL for now; there is no upload endpoint yet.
 
 ### Forms (Google Sheets): `/admin/forms`
 - `GET` list, `GET /:id`.

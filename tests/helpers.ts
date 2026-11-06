@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq, like } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { applicationForms, authAttempts, news, users } from "@/lib/db/schema";
+import { applicationForms, archives, authAttempts, news, users } from "@/lib/db/schema";
 import { register } from "@/lib/services/auth";
 import { createForm } from "@/lib/services/applications";
 import type { Cell } from "@/lib/services/sheets";
@@ -37,5 +37,6 @@ export async function cleanup() {
   await db.delete(users).where(like(users.email, `${PREFIX}-%`));
   await db.delete(applicationForms).where(like(applicationForms.title, `${PREFIX}%`));
   await db.delete(news).where(like(news.slug, `${PREFIX}-%`));
+  await db.delete(archives).where(like(archives.fileUrl, `%${PREFIX}%`));
   await db.delete(authAttempts).where(like(authAttempts.key, `%${PREFIX}%`));
 }

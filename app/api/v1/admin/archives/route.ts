@@ -12,6 +12,6 @@ export const GET = route(async (req) => {
 export const POST = route(async (req) => {
   const admin = await requireAdmin();
   const created = await createArchive(await body(req, archiveCreate), admin.id);
-  revalidateTag("archives", "max");
+  revalidateTag("archives", { expire: 0 });
   return created;
 }, 201);

@@ -1,4 +1,5 @@
 import "server-only";
+import { notFound, redirect } from "next/navigation";
 import { HttpError } from "@/lib/http";
 import { getSessionUser, type Role } from "@/lib/services/auth";
 import { readSessionToken } from "./cookie";
@@ -21,3 +22,11 @@ export async function requireRole(...roles: Role[]) {
 }
 
 export const requireAdmin = () => requireRole("admin", "superuser");
+
+/** For admin pages: signed out goes to login and back; a signed-in account without the role gets a 404. */
+export async function adminPage(lang: string, path: string, superuserOnly = false) {
+  const user = await currentUser();
+  if (!user) redirect(`/${lang}/login?next=${encodeURIComponent(path)}`);
+  if (superuserOnly ? user.role !== "superuser" : user.role === "user") notFound();
+  return user;
+}
