@@ -125,6 +125,10 @@ export const applicationForms = pgTable("application_forms", {
   googleSheetId: varchar("google_sheet_id", { length: 200 }).notNull(),
   sheetName: varchar("sheet_name", { length: 200 }).notNull(),
   keyColumn: varchar("key_column", { length: 200 }).notNull(),
+  // Optional columns that give a row an external apply link, a hand-typed status and a dd.mm.yyyy deadline.
+  linkColumn: varchar("link_column", { length: 200 }),
+  statusColumn: varchar("status_column", { length: 200 }),
+  deadlineColumn: varchar("deadline_column", { length: 200 }),
   schemaDefinition: jsonb("schema_definition")
     .$type<{ columns: FormColumn[] }>()
     .notNull()
@@ -167,6 +171,8 @@ export const applicationSubmissions = pgTable(
       .notNull()
       .references(() => applications.id, { onDelete: "restrict" }),
     status: submissionStatus("status").notNull().default("pending"),
+    // true: the student applied on an external site and marked it themselves, so it is never confirmed.
+    external: boolean("external").notNull().default(false),
     dataSnapshot: jsonb("data_snapshot").$type<Record<string, string>>().notNull(),
     ...timestamps,
   },

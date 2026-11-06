@@ -9,7 +9,15 @@ const globalForDb = globalThis as unknown as { pgPool?: Pool };
 function createPool() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error("DATABASE_URL is not set");
-  const pool = new Pool({ connectionString });
+  const pool = new Pool({
+    connectionString,
+    max: 10,
+    connectionTimeoutMillis: 10_000,
+    idleTimeoutMillis: 30_000,
+    statement_timeout: 20_000,
+  });
+  // An idle client dropping must not crash the process.
+  pool.on("error", (e) => console.error("pg pool error", { code: (e as { code?: string }).code }));
   attachDatabasePool(pool);
   return pool;
 }

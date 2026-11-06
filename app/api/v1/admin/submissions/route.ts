@@ -4,6 +4,6 @@ import { listAllSubmissions, submissionFilter } from "@/lib/services/application
 
 export const GET = route(async (req) => {
   await requireAdmin();
-  const { limit, offset, status } = query(req, pagination.extend(submissionFilter.shape));
-  return listAllSubmissions(limit, offset, status);
+  const { limit, offset, ...filter } = query(req, pagination.extend(submissionFilter.shape));
+  return listAllSubmissions(limit, offset, filter);
 });

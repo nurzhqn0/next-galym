@@ -2,7 +2,7 @@ import type { Dict } from "@/app/[lang]/dictionaries/en";
 import type { Locale } from "@/lib/locale";
 import { ApplyButton } from "./apply-button";
 
-export type Listing = { id: string; formTitle: string; data: Record<string, string> };
+export type Listing = { id: string; formTitle: string; applyUrl: string | null; data: Record<string, string> };
 
 /** One open application, printed as a numbered question you answer by filling the bubble. */
 export function AnswerRow({ n, listing, t, lang, i = 0, wide = false }: { n: number; listing: Listing; t: Dict; lang: Locale; i?: number; wide?: boolean }) {
@@ -31,7 +31,7 @@ export function AnswerRow({ n, listing, t, lang, i = 0, wide = false }: { n: num
         )}
       </div>
       <div className={`col-start-2 ${wide ? "md:col-start-3" : ""}`}>
-        <ApplyButton applicationId={listing.id} lang={lang} labels={t.open} name={title ? title[1] : listing.formTitle} />
+        <ApplyButton applicationId={listing.id} applyUrl={listing.applyUrl} lang={lang} labels={t.open} name={title ? title[1] : listing.formTitle} />
       </div>
     </li>
   );

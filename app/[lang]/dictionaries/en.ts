@@ -30,6 +30,9 @@ const en = {
     loginToApply: "Log in to apply",
     error: "Could not send. Try again.",
     removed: "No longer available",
+    openApplication: "Open application",
+    iApplied: "I applied",
+    markedApplied: "Marked as applied",
   },
   about: {
     title: "About us",
@@ -100,6 +103,7 @@ const en = {
     removed: "This application is no longer open",
     status: { pending: "Pending", reviewed: "Reviewed", accepted: "Accepted", rejected: "Rejected" },
     sent: "Sent",
+    selfReported: "Marked by you, not confirmed",
   },
   footer: { tagline: "A bridge for future galyms.", instagram: "Instagram", rights: "Next Galym" },
   notFound: { title: "Page not found", text: "This page is not on the sheet.", back: "Back to the start" },

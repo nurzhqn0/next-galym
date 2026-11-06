@@ -32,6 +32,9 @@ const ru: Dict = {
     applied: "Подана",
     loginToApply: "Войдите, чтобы подать заявку",
     error: "Не удалось отправить. Попробуйте ещё раз.",
+    openApplication: "Открыть заявку",
+    iApplied: "Я подал заявку",
+    markedApplied: "Отмечено как поданная",
     removed: "Больше недоступна",
   },
   about: {
@@ -97,6 +100,7 @@ const ru: Dict = {
     removed: "Эта заявка больше не открыта",
     status: { pending: "На рассмотрении", reviewed: "Рассмотрена", accepted: "Принята", rejected: "Отклонена" },
     sent: "Отправлена",
+    selfReported: "Отмечено вами, не подтверждено",
   },
   footer: { tagline: "Мост для будущих галымов.", instagram: "Instagram", rights: "Next Galym" },
   notFound: { title: "Страница не найдена", text: "Этой страницы нет на бланке.", back: "Вернуться в начало" },

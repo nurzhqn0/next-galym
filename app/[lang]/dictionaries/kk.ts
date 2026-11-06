@@ -32,6 +32,9 @@ const kk: Dict = {
     applied: "Жіберілді",
     loginToApply: "Өтінім беру үшін кіріңіз",
     error: "Жіберу мүмкін болмады. Қайталап көріңіз.",
+    openApplication: "Өтінімді ашу",
+    iApplied: "Мен өтінім бердім",
+    markedApplied: "Өтінім берілді деп белгіленді",
     removed: "Енді қолжетімді емес",
   },
   about: {
@@ -97,6 +100,7 @@ const kk: Dict = {
     removed: "Бұл өтінім енді ашық емес",
     status: { pending: "Қаралуда", reviewed: "Қаралды", accepted: "Қабылданды", rejected: "Қабылданбады" },
     sent: "Жіберілді",
+    selfReported: "Өзіңіз белгілегенсіз, расталмаған",
   },
   footer: { tagline: "Болашақ ғалымдарға арналған көпір.", instagram: "Instagram", rights: "Next Galym" },
   notFound: { title: "Бет табылмады", text: "Бұл бет парақта жоқ.", back: "Басына оралу" },

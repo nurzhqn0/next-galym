@@ -4,10 +4,20 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useHydrated } from "./use-hydrated";
 
-type Labels = { apply: string; applying: string; applied: string; loginToApply: string; error: string; removed: string };
+type Labels = {
+  apply: string;
+  applying: string;
+  applied: string;
+  loginToApply: string;
+  error: string;
+  removed: string;
+  openApplication: string;
+  iApplied: string;
+  markedApplied: string;
+};
 
 /** Filling the bubble is applying. 401 sends the visitor to log in first. */
-export function ApplyButton({ applicationId, lang, labels, name }: { applicationId: string; lang: string; labels: Labels; name: string }) {
+export function ApplyButton({ applicationId, applyUrl, lang, labels, name }: { applicationId: string; applyUrl: string | null; lang: string; labels: Labels; name: string }) {
   const router = useRouter();
   const hydrated = useHydrated();
   const [state, setState] = useState<"idle" | "sending" | "done" | "error" | "gone">("idle");
@@ -29,10 +39,17 @@ export function ApplyButton({ applicationId, lang, labels, name }: { application
   }
 
   const done = state === "done";
+  // With a link the student applies on the other site first, then marks it here; the mark is their own claim.
+  const idle = applyUrl ? labels.iApplied : labels.apply;
   const text =
-    state === "sending" ? labels.applying : done ? labels.applied : state === "gone" ? labels.removed : labels.apply;
+    state === "sending" ? labels.applying : done ? (applyUrl ? labels.markedApplied : labels.applied) : state === "gone" ? labels.removed : idle;
   return (
     <div className="flex flex-col items-start gap-1 md:items-end">
+      {applyUrl && (
+        <a href={applyUrl} target="_blank" rel="noopener noreferrer" className="field field-solid label mb-2 inline-flex min-h-11 items-center">
+          {labels.openApplication}
+        </a>
+      )}
       <button
         type="button"
         onClick={apply}
@@ -44,7 +61,7 @@ export function ApplyButton({ applicationId, lang, labels, name }: { application
         {text}
       </button>
       <span className="sr-only" aria-live="polite">
-        {state === "done" ? labels.applied : ""}
+        {state === "done" ? text : ""}
       </span>
       {state === "error" && (
         <p role="alert" className="text-sm font-medium">

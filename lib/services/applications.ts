@@ -1,17 +1,22 @@
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { applicationForms, applications, applicationSubmissions, users } from "@/lib/db/schema";
-import { HttpError, isForeignKeyViolation, isUniqueViolation } from "@/lib/http";
+import { HttpError, isForeignKeyViolation, isUniqueViolation, likePattern } from "@/lib/http";
+import { parseSheetId } from "@/lib/sheet-url";
 
 type Columns = typeof applicationForms.$inferSelect.schemaDefinition;
 
 /** Only columns an admin explicitly marked public ever leave the server. */
-export function publicData(data: Record<string, string>, schema: Columns) {
+export function publicData(data: Record<string, string>, schema: Columns, linkColumn?: string | null) {
   const out: Record<string, string> = {};
-  for (const c of schema.columns) if (c.public && c.header in data) out[c.header] = data[c.header];
+  // The link column is never a normal field: it is exposed as `applyUrl` instead.
+  for (const c of schema.columns) if (c.public && c.header !== linkColumn && c.header in data) out[c.header] = data[c.header];
   return out;
 }
+
+const applyUrlOf = (data: Record<string, string>, linkColumn: string | null) =>
+  (linkColumn && data[linkColumn]?.trim()) || null;
 
 const liveListing = and(isNull(applications.removedAt), eq(applicationForms.isActive, true));
 
@@ -22,7 +27,8 @@ const listingShape = (r: {
   id: r.application.id,
   formId: r.form.id,
   formTitle: r.form.title,
-  data: publicData(r.application.data, r.form.schemaDefinition),
+  applyUrl: applyUrlOf(r.application.data, r.form.linkColumn),
+  data: publicData(r.application.data, r.form.schemaDefinition, r.form.linkColumn),
 });
 
 export async function listListings(limit: number, offset: number, formId?: string) {
@@ -61,8 +67,10 @@ export async function applyTo(userId: string, applicationId: string) {
       .values({
         userId,
         applicationId,
+        // A listing with an external link is applied to elsewhere; this records the student's own claim.
+        external: applyUrlOf(row.application.data, row.form.linkColumn) !== null,
         // Snapshot is public columns only: users can read their own submissions back.
-        dataSnapshot: publicData(row.application.data, row.form.schemaDefinition),
+        dataSnapshot: publicData(row.application.data, row.form.schemaDefinition, row.form.linkColumn),
       })
       .returning();
     return created;
@@ -92,33 +100,57 @@ export async function listMySubmissions(userId: string) {
     applicationId: r.s.applicationId,
     formTitle: r.form.title,
     status: r.s.status,
+    external: r.s.external,
     data: inColumnOrder(r.s.dataSnapshot, r.form.schemaDefinition),
     listingRemoved: r.application.removedAt !== null,
     createdAt: r.s.createdAt,
   }));
 }
 
+const statuses = ["pending", "reviewed", "accepted", "rejected"] as const;
 export const submissionFilter = z.object({
-  status: z.enum(["pending", "reviewed", "accepted", "rejected"]).optional(),
+  status: z.enum(statuses).optional(),
+  formId: z.uuid().optional(),
+  q: z.string().trim().min(1).max(100).optional(),
 });
-export const submissionUpdate = z.object({ status: z.enum(["pending", "reviewed", "accepted", "rejected"]) });
+export const submissionUpdate = z.object({ status: z.enum(statuses) });
 
-export async function listAllSubmissions(limit: number, offset: number, status?: "pending" | "reviewed" | "accepted" | "rejected") {
-  return db
-    .select({
-      id: applicationSubmissions.id,
-      status: applicationSubmissions.status,
-      data: applicationSubmissions.dataSnapshot,
-      createdAt: applicationSubmissions.createdAt,
-      applicationId: applicationSubmissions.applicationId,
-      user: { id: users.id, email: users.email, fullName: users.fullName },
-    })
+export async function listAllSubmissions(limit: number, offset: number, filter: z.infer<typeof submissionFilter> = {}) {
+  const where = and(
+    filter.status ? eq(applicationSubmissions.status, filter.status) : undefined,
+    filter.formId ? eq(applications.formId, filter.formId) : undefined,
+    filter.q ? or(ilike(users.email, likePattern(filter.q)), ilike(users.fullName, likePattern(filter.q))) : undefined,
+  );
+  const joined = db
+    .select({ n: count() })
     .from(applicationSubmissions)
     .innerJoin(users, eq(users.id, applicationSubmissions.userId))
-    .where(status ? eq(applicationSubmissions.status, status) : undefined)
-    .orderBy(desc(applicationSubmissions.createdAt))
-    .limit(limit)
-    .offset(offset);
+    .innerJoin(applications, eq(applications.id, applicationSubmissions.applicationId))
+    .where(where);
+  const [items, [{ n: total }]] = await Promise.all([
+    db
+      .select({
+        id: applicationSubmissions.id,
+        status: applicationSubmissions.status,
+        external: applicationSubmissions.external,
+        data: applicationSubmissions.dataSnapshot,
+        createdAt: applicationSubmissions.createdAt,
+        applicationId: applicationSubmissions.applicationId,
+        formId: applicationForms.id,
+        formTitle: applicationForms.title,
+        user: { id: users.id, email: users.email, fullName: users.fullName },
+      })
+      .from(applicationSubmissions)
+      .innerJoin(users, eq(users.id, applicationSubmissions.userId))
+      .innerJoin(applications, eq(applications.id, applicationSubmissions.applicationId))
+      .innerJoin(applicationForms, eq(applicationForms.id, applications.formId))
+      .where(where)
+      .orderBy(desc(applicationSubmissions.createdAt))
+      .limit(limit)
+      .offset(offset),
+    joined,
+  ]);
+  return { items, total };
 }
 
 export async function setSubmissionStatus(id: string, status: z.infer<typeof submissionUpdate>["status"]) {
@@ -133,11 +165,22 @@ export async function setSubmissionStatus(id: string, status: z.infer<typeof sub
 
 // Forms admin
 
+const column = z.string().trim().min(1).max(200);
+
 export const formCreate = z.object({
   title: z.string().trim().min(1).max(300),
-  googleSheetId: z.string().trim().regex(/^[A-Za-z0-9_-]{20,}$/, "Not a Google Sheet id"),
+  /** A bare id or a full docs.google.com/spreadsheets/d/<id>/... URL. */
+  googleSheetId: z.string().trim().transform((v, ctx) => {
+    const id = parseSheetId(v);
+    if (!id) ctx.addIssue({ code: "custom", message: "Not a Google Sheet id or URL" });
+    return id ?? z.NEVER;
+  }),
   sheetName: z.string().trim().min(1).max(200),
   keyColumn: z.string().trim().min(1).max(200),
+  /** Optional sheet columns; null clears one. */
+  linkColumn: column.nullish(),
+  statusColumn: column.nullish(),
+  deadlineColumn: column.nullish(),
 });
 export const formUpdate = formCreate.partial().extend({
   isActive: z.boolean().optional(),
@@ -146,6 +189,12 @@ export const formUpdate = formCreate.partial().extend({
 });
 
 export const listForms = () => db.select().from(applicationForms).orderBy(asc(applicationForms.title));
+
+export async function getForm(id: string) {
+  const [row] = await db.select().from(applicationForms).where(eq(applicationForms.id, id));
+  if (!row) throw new HttpError(404, "Form not found");
+  return row;
+}
 
 export async function createForm(input: z.infer<typeof formCreate>, createdBy: string) {
   const [row] = await db.insert(applicationForms).values({ ...input, createdBy }).returning();

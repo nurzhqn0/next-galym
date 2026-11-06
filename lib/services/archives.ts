@@ -1,4 +1,4 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { count, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { archives, archiveTranslations } from "@/lib/db/schema";
@@ -7,7 +7,7 @@ import { locales, pickTranslation, type Locale } from "@/lib/locale";
 
 const translation = z.object({
   title: z.string().trim().min(1).max(300),
-  description: z.string().nullish(),
+  description: z.string().max(5000).nullish(),
 });
 const optionalTranslations = z.object({
   en: translation.optional(),
@@ -31,10 +31,11 @@ export const archiveUpdate = z.object({
   translations: optionalTranslations.optional(),
 });
 
-async function withTranslations(rows: (typeof archives.$inferSelect)[]) {
+// `exec` is the open transaction when there is one: reading through `db` would miss uncommitted writes.
+async function withTranslations(rows: (typeof archives.$inferSelect)[], exec: Pick<typeof db, "select"> = db) {
   const ids = rows.map((r) => r.id);
   const trs = ids.length
-    ? await db.select().from(archiveTranslations).where(inArray(archiveTranslations.archiveId, ids))
+    ? await exec.select().from(archiveTranslations).where(inArray(archiveTranslations.archiveId, ids))
     : [];
   return rows.map((r) => ({ ...r, translations: trs.filter((t) => t.archiveId === r.id) }));
 }
@@ -54,6 +55,20 @@ export async function listArchives(lang: Locale, limit: number, offset: number) 
       description: t?.description,
     };
   });
+}
+
+export async function listAdminArchives(limit: number, offset: number) {
+  const [rows, [{ n: total }]] = await Promise.all([
+    db.select().from(archives).orderBy(desc(archives.createdAt)).limit(limit).offset(offset),
+    db.select({ n: count() }).from(archives),
+  ]);
+  return { items: await withTranslations(rows), total };
+}
+
+export async function getAdminArchive(id: string) {
+  const [row] = await db.select().from(archives).where(eq(archives.id, id));
+  if (!row) throw new HttpError(404, "Archive not found");
+  return (await withTranslations([row]))[0];
 }
 
 async function upsertTranslations(tx: Pick<typeof db, "insert">, archiveId: string, t: z.infer<typeof optionalTranslations>) {
@@ -77,7 +92,7 @@ export async function createArchive(input: z.infer<typeof archiveCreate>, upload
       .values({ fileUrl: input.fileUrl, fileType: input.fileType, fileSize: input.fileSize, uploadedBy })
       .returning();
     await upsertTranslations(tx, row.id, input.translations);
-    return (await withTranslations([row]))[0];
+    return (await withTranslations([row], tx))[0];
   });
 }
 
@@ -89,7 +104,7 @@ export async function updateArchive(id: string, input: z.infer<typeof archiveUpd
       : await tx.select().from(archives).where(eq(archives.id, id));
     if (!row) throw new HttpError(404, "Archive not found");
     if (translations) await upsertTranslations(tx, id, translations);
-    return (await withTranslations([row]))[0];
+    return (await withTranslations([row], tx))[0];
   });
 }
 

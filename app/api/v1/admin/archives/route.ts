@@ -1,7 +1,13 @@
 import { revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guard";
-import { body, route } from "@/lib/http";
-import { archiveCreate, createArchive } from "@/lib/services/archives";
+import { body, pagination, query, route } from "@/lib/http";
+import { archiveCreate, createArchive, listAdminArchives } from "@/lib/services/archives";
+
+export const GET = route(async (req) => {
+  await requireAdmin();
+  const { limit, offset } = query(req, pagination);
+  return listAdminArchives(limit, offset);
+});
 
 export const POST = route(async (req) => {
   const admin = await requireAdmin();

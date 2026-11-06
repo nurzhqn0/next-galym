@@ -33,6 +33,7 @@ async function Answers() {
                     {s.formTitle} · {t.account.sent} {formatDate(s.createdAt, lang)}
                   </p>
                   {s.listingRemoved && <p className="mt-1 text-sm">{t.account.removed}</p>}
+                  {s.external && <p className="mt-1 text-sm">{t.account.selfReported}</p>}
                 </div>
                 <p className="col-start-2 md:col-start-3">
                   <span className="stamp" data-status={s.status}>{t.account.status[s.status]}</span>

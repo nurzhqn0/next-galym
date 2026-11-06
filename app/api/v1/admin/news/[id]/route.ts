@@ -1,9 +1,14 @@
 import { revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/auth/guard";
 import { body, route, uuid } from "@/lib/http";
-import { deleteNews, newsUpdate, updateNews } from "@/lib/services/news";
+import { deleteNews, getAdminNews, newsUpdate, updateNews } from "@/lib/services/news";
 
 type Ctx = RouteContext<"/api/v1/admin/news/[id]">;
+
+export const GET = route(async (_req, ctx: Ctx) => {
+  await requireAdmin();
+  return getAdminNews(uuid((await ctx.params).id));
+});
 
 export const PATCH = route(async (req, ctx: Ctx) => {
   await requireAdmin();

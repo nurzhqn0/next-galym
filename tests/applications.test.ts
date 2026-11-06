@@ -3,17 +3,17 @@ import { afterAll, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { applications } from "@/lib/db/schema";
 import { applyTo, getListing, listListings, listMySubmissions, updateForm } from "@/lib/services/applications";
-import { syncForm } from "@/lib/services/sheets";
-import { cleanup, csv, makeForm, makeUser } from "./helpers";
+import { syncForm, type Cell } from "@/lib/services/sheets";
+import { cleanup, grid, makeForm, makeUser } from "./helpers";
 
 afterAll(cleanup);
 const H = ["id", "title", "notes"];
-const fixture = (text: string) => async () => text;
+const fixture = (rows: Cell[][]) => async () => rows;
 
 async function setup() {
   const admin = await makeUser("admin");
   const form = await makeForm(admin);
-  await syncForm(form.id, fixture(csv(H, [["a", "Grant A", "secret-a"], ["b", "Grant B", "secret-b"]])));
+  await syncForm(form.id, fixture(grid(H, [["a", "Grant A", "secret-a"], ["b", "Grant B", "secret-b"]])));
   await updateForm(form.id, { publicColumns: ["id", "title"] });
   const rows = await db.select().from(applications).where(eq(applications.formId, form.id));
   const idOf = (key: string) => rows.find((r) => r.externalKey === key)!.id;
@@ -34,7 +34,7 @@ describe("applications", () => {
 
   it("new sheet columns default to private", async () => {
     const { form, idOf } = await setup();
-    await syncForm(form.id, fixture(csv([...H, "phone"], [["a", "Grant A", "s", "555"], ["b", "Grant B", "s", "556"]])));
+    await syncForm(form.id, fixture(grid([...H, "phone"], [["a", "Grant A", "s", "555"], ["b", "Grant B", "s", "556"]])));
     expect(JSON.stringify(await getListing(idOf("a")))).not.toContain("555");
   });
 
@@ -48,7 +48,7 @@ describe("applications", () => {
   it("applying to a listing that left the sheet is 410", async () => {
     const { form, idOf } = await setup();
     const user = await makeUser();
-    await syncForm(form.id, fixture(csv(H, [["b", "Grant B", "s"]])));
+    await syncForm(form.id, fixture(grid(H, [["b", "Grant B", "s"]])));
     await expect(applyTo(user.id, idOf("a"))).rejects.toMatchObject({ status: 410 });
   });
 
@@ -56,7 +56,7 @@ describe("applications", () => {
     const { form, idOf } = await setup();
     const user = await makeUser();
     const sub = await applyTo(user.id, idOf("b"));
-    await syncForm(form.id, fixture(csv(H, [["z", "New", "s"], ["b", "Grant B edited", "s"], ["a", "Grant A", "s"]])));
+    await syncForm(form.id, fixture(grid(H, [["z", "New", "s"], ["b", "Grant B edited", "s"], ["a", "Grant A", "s"]])));
     expect(sub.applicationId).toBe(idOf("b"));
     const mine = await listMySubmissions(user.id);
     expect(mine).toHaveLength(1);
@@ -71,25 +71,25 @@ describe("applications", () => {
     const { form, idOf } = await setup();
     const user = await makeUser();
     await applyTo(user.id, idOf("a"));
-    const res = await syncForm(form.id, fixture(csv(H, [["b", "Grant B", "s"]])));
+    const res = await syncForm(form.id, fixture(grid(H, [["b", "Grant B", "s"]])));
     expect(res.removed).toBe(1);
     expect((await listMySubmissions(user.id))[0].listingRemoved).toBe(true);
     expect(await listListings(100, 0, form.id)).toHaveLength(1);
-    await syncForm(form.id, fixture(csv(H, [["a", "Grant A", "s"], ["b", "Grant B", "s"]])));
+    await syncForm(form.id, fixture(grid(H, [["a", "Grant A", "s"], ["b", "Grant B", "s"]])));
     expect((await listMySubmissions(user.id))[0].listingRemoved).toBe(false);
   });
 
   it("skips empty and duplicate keys, reports them", async () => {
     const { form } = await setup();
-    const res = await syncForm(form.id, fixture(csv(H, [["a", "A", ""], ["", "no key", ""], ["a", "dup", ""]])));
+    const res = await syncForm(form.id, fixture(grid(H, [["a", "A", ""], ["", "no key", ""], ["a", "dup", ""]])));
     expect(res.total).toBe(1);
     expect(res.skipped.map((s) => s.row)).toEqual([3, 4]);
   });
 
   it("refuses to wipe every listing from an empty sheet, and rejects a missing key column", async () => {
     const { form } = await setup();
-    await expect(syncForm(form.id, fixture(csv(H, [])))).rejects.toMatchObject({ status: 422 });
-    await expect(syncForm(form.id, fixture(csv(["title"], [["x"]])))).rejects.toMatchObject({ status: 422 });
+    await expect(syncForm(form.id, fixture(grid(H, [])))).rejects.toMatchObject({ status: 422 });
+    await expect(syncForm(form.id, fixture(grid(["title"], [["x"]])))).rejects.toMatchObject({ status: 422 });
     expect(await listListings(100, 0, form.id)).toHaveLength(2);
   });
 
@@ -97,7 +97,7 @@ describe("applications", () => {
     const admin = await makeUser("admin");
     const form = await makeForm(admin, "id");
     // jsonb would sort these as id, name, level; the sheet order is name, level, id.
-    await syncForm(form.id, fixture(csv(["name", "level", "id"], [["Grant A", "PhD", "a"]])));
+    await syncForm(form.id, fixture(grid(["name", "level", "id"], [["Grant A", "PhD", "a"]])));
     await updateForm(form.id, { publicColumns: ["name", "level", "id"] });
     const [row] = await db.select().from(applications).where(eq(applications.formId, form.id));
     const user = await makeUser();

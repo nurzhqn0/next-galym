@@ -1,58 +1,153 @@
-import { parse } from "csv-parse/sync";
+import ExcelJS from "exceljs";
 import { and, eq, isNull, notInArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { applicationForms, applications } from "@/lib/db/schema";
 import { HttpError } from "@/lib/http";
 
-export type CsvFetcher = (sheetId: string, sheetName: string) => Promise<string>;
+export type Cell = { text: string; url?: string };
+export type SheetFetcher = (sheetId: string, sheetName: string) => Promise<Cell[][]>;
 
-/** Reads a sheet shared as "anyone with the link can view" through Google's CSV endpoint. */
-export const fetchSheetCsv: CsvFetcher = async (sheetId, sheetName) => {
-  const url =
-    `https://docs.google.com/spreadsheets/d/${encodeURIComponent(sheetId)}/gviz/tq` +
-    `?tqx=out:csv&headers=1&sheet=${encodeURIComponent(sheetName)}`;
-  const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(15_000) });
+const MAX_BYTES = 10 * 1024 * 1024;
+const TIME_ZONE = "Asia/Almaty";
+
+/** exceljs hands back strings, numbers, dates, rich text and hyperlink objects; reduce any of them to text. */
+export function cellText(value: ExcelJS.CellValue | undefined): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if ("richText" in value) return value.richText.map((r) => r.text).join("");
+  if ("text" in value) return cellText(value.text as ExcelJS.CellValue);
+  if ("result" in value) return cellText(value.result as ExcelJS.CellValue);
+  return "";
+}
+
+/**
+ * Reads a sheet shared as "anyone with the link can view" through Google's xlsx export.
+ * CSV drops hyperlink targets (a linked cell exports as its display text), xlsx keeps them.
+ */
+export const fetchSheetRows: SheetFetcher = async (sheetId, sheetName) => {
+  const url = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(sheetId)}/export?format=xlsx`;
+  const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(20_000) });
   const type = res.headers.get("content-type") ?? "";
-  if (!res.ok || !type.includes("csv")) {
+  if (!res.ok || type.includes("text/html")) {
     throw new HttpError(502, "Could not read the Google Sheet. Is it shared as 'anyone with the link can view'?");
   }
-  return res.text();
+  const buffer = Buffer.from(await res.arrayBuffer());
+  if (buffer.length > MAX_BYTES) throw new HttpError(502, "The Google Sheet is too large to sync");
+
+  const workbook = new ExcelJS.Workbook();
+  try {
+    await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+  } catch {
+    throw new HttpError(502, "Google returned a file that is not a spreadsheet");
+  }
+  const sheet = workbook.getWorksheet(sheetName);
+  if (!sheet) throw new HttpError(422, `Tab "${sheetName}" not found in the Google Sheet`);
+
+  const grid: Cell[][] = [];
+  for (let r = 1; r <= sheet.rowCount; r++) {
+    const row = sheet.getRow(r);
+    const cells: Cell[] = [];
+    for (let c = 1; c <= sheet.columnCount; c++) {
+      const cell = row.getCell(c);
+      const link = typeof cell.hyperlink === "string" ? cell.hyperlink : undefined;
+      cells.push({ text: cellText(cell.value).trim(), url: link });
+    }
+    grid.push(cells);
+  }
+  return grid;
 };
 
 export type SyncResult = {
   total: number;
+  closed: number;
   skipped: { row: number; reason: string }[];
+  warnings: { row: number; reason: string }[];
   removed: number;
 };
 
-export async function syncForm(formId: string, fetchCsv: CsvFetcher = fetchSheetCsv): Promise<SyncResult> {
+/** Today in Almaty as yyyy-mm-dd, so a deadline "today" stays open until the day ends there. */
+export function todayAlmaty(now = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE }).format(now);
+}
+
+/** dd.mm.yyyy to yyyy-mm-dd, or null when the text is not a real date. */
+export function parseDeadline(text: string): string | null {
+  const m = text.trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!m) return null;
+  const [d, mo, y] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const date = new Date(Date.UTC(y, mo - 1, d));
+  if (date.getUTCFullYear() !== y || date.getUTCMonth() !== mo - 1 || date.getUTCDate() !== d) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+function httpUrl(value: string | undefined): string | null {
+  if (!value) return null;
+  try {
+    const u = new URL(value.trim());
+    return u.protocol === "http:" || u.protocol === "https:" ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function syncForm(formId: string, fetchRows: SheetFetcher = fetchSheetRows): Promise<SyncResult> {
   const [form] = await db.select().from(applicationForms).where(eq(applicationForms.id, formId));
   if (!form) throw new HttpError(404, "Form not found");
 
-  const records: string[][] = parse(await fetchCsv(form.googleSheetId, form.sheetName), {
-    skip_empty_lines: true,
-    relax_column_count: true,
-  });
-  const header = (records[0] ?? []).map((h) => h.trim());
-  if (!header.includes(form.keyColumn)) {
-    throw new HttpError(422, `Key column "${form.keyColumn}" not found in the sheet header`);
-  }
+  const grid = await fetchRows(form.googleSheetId, form.sheetName);
+  const header = (grid[0] ?? []).map((c) => c.text.trim());
+  const indexOf = (label: string, column: string | null) => {
+    if (!column) return -1;
+    const i = header.indexOf(column);
+    if (i < 0) throw new HttpError(422, `${label} column "${column}" not found in the sheet header`);
+    return i;
+  };
+  const keyIdx = indexOf("Key", form.keyColumn);
+  const linkIdx = indexOf("Link", form.linkColumn);
+  const statusIdx = indexOf("Status", form.statusColumn);
+  const deadlineIdx = indexOf("Deadline", form.deadlineColumn);
 
-  const keyIdx = header.indexOf(form.keyColumn);
+  const today = todayAlmaty();
   const seen = new Set<string>();
   const skipped: SyncResult["skipped"] = [];
+  const warnings: SyncResult["warnings"] = [];
   const rows: (typeof applications.$inferInsert)[] = [];
-  records.slice(1).forEach((cells, i) => {
+  let closed = 0;
+
+  grid.slice(1).forEach((cells, i) => {
     const rowNumber = i + 2; // sheet row number, header is row 1
-    const key = (cells[keyIdx] ?? "").trim();
+    if (cells.every((c) => !c.text && !c.url)) return; // blank rows are not worth reporting
+    const key = (cells[keyIdx]?.text ?? "").trim();
     if (!key) return void skipped.push({ row: rowNumber, reason: "empty key" });
     if (seen.has(key)) return void skipped.push({ row: rowNumber, reason: `duplicate key "${key}"` });
+    // A row with no status is a note under the table, not a listing.
+    const status = statusIdx >= 0 ? (cells[statusIdx]?.text ?? "").trim().toLowerCase() : "";
+    if (statusIdx >= 0 && !status) return void skipped.push({ row: rowNumber, reason: "empty status" });
     seen.add(key);
+
     const data: Record<string, string> = {};
     header.forEach((h, c) => {
-      if (h) data[h] = cells[c] ?? "";
+      if (h) data[h] = cells[c]?.text ?? "";
     });
-    rows.push({ formId, externalKey: key, rowNumber, data });
+
+    if (linkIdx >= 0) {
+      const cell = cells[linkIdx];
+      const url = httpUrl(cell?.url) ?? httpUrl(cell?.text);
+      if (!url && (cell?.text || cell?.url)) warnings.push({ row: rowNumber, reason: "link is not a valid http(s) URL" });
+      data[header[linkIdx]] = url ?? "";
+    }
+
+    let isClosed = status === "expired";
+    if (deadlineIdx >= 0) {
+      const text = (cells[deadlineIdx]?.text ?? "").trim();
+      const date = parseDeadline(text);
+      if (date) isClosed ||= date < today;
+      else if (text && text.toLowerCase() !== "no deadline") warnings.push({ row: rowNumber, reason: `deadline "${text}" is not dd.mm.yyyy` });
+    }
+    if (isClosed) closed++;
+    rows.push({ formId, externalKey: key, rowNumber, data, removedAt: isClosed ? new Date() : null });
   });
 
   // A bad fetch or cleared sheet must not wipe every listing.
@@ -77,7 +172,7 @@ export async function syncForm(formId: string, fetchCsv: CsvFetcher = fetchSheet
           set: {
             rowNumber: sql`excluded.row_number`,
             data: sql`excluded.data`,
-            removedAt: null,
+            removedAt: sql`excluded.removed_at`,
             parsedAt: sql`now()`,
             updatedAt: sql`now()`,
           },
@@ -98,7 +193,7 @@ export async function syncForm(formId: string, fetchCsv: CsvFetcher = fetchSheet
       .update(applicationForms)
       .set({ schemaDefinition: { columns }, lastSyncedAt: new Date() })
       .where(eq(applicationForms.id, formId));
-    return { total: rows.length, skipped, removed: gone.length };
+    return { total: rows.length, closed, skipped, warnings, removed: gone.length };
   });
 }
 

@@ -1,9 +1,9 @@
 import { createHash, randomBytes } from "node:crypto";
 import { hash, verify } from "@node-rs/argon2";
-import { and, eq, gt, lt, sql } from "drizzle-orm";
+import { and, eq, gt, lt, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { sessions, users } from "@/lib/db/schema";
+import { authAttempts, sessions, users } from "@/lib/db/schema";
 import { HttpError, isUniqueViolation } from "@/lib/http";
 
 export type Role = "superuser" | "admin" | "user";
@@ -15,6 +15,8 @@ const ARGON2ID = 2;
 const dummyHash = hash("not-a-real-password", { algorithm: ARGON2ID });
 
 const sha256 = (v: string) => createHash("sha256").update(v).digest("hex");
+
+export const hashPassword = (password: string) => hash(password, { algorithm: ARGON2ID });
 
 export const registerInput = z.object({
   email: z.email().max(320).transform((v) => v.trim().toLowerCase()),
@@ -55,13 +57,23 @@ export async function getSessionUser(token: string): Promise<SessionUser | null>
   return row ?? null;
 }
 
+/** Housekeeping for the daily cron: expired sessions and rate-limit windows nobody will come back to. */
+export async function purgeExpired() {
+  const s = await db.delete(sessions).where(lt(sessions.expiresAt, sql`now()`)).returning({ id: sessions.id });
+  const a = await db
+    .delete(authAttempts)
+    .where(lt(authAttempts.windowStart, sql`now() - interval '1 day'`))
+    .returning({ key: authAttempts.key });
+  return { sessions: s.length, authAttempts: a.length };
+}
+
 export async function deleteSession(token: string) {
   await db.delete(sessions).where(eq(sessions.token, sha256(token)));
 }
 
 export async function register(input: z.infer<typeof registerInput>, ip: string) {
   await rateLimit(`register:ip:${ip}`, 5, 3600);
-  const passwordHash = await hash(input.password, { algorithm: ARGON2ID });
+  const passwordHash = await hashPassword(input.password);
   try {
     const [user] = await db
       .insert(users)
@@ -72,6 +84,22 @@ export async function register(input: z.infer<typeof registerInput>, ip: string)
     if (isUniqueViolation(e)) throw new HttpError(409, "An account with this email already exists");
     throw e;
   }
+}
+
+export const passwordChangeInput = z.object({
+  currentPassword: z.string().min(1).max(200),
+  newPassword: z.string().min(10).max(200),
+});
+
+/** Changes the caller's own password and signs out every other session. */
+export async function changePassword(userId: string, input: z.infer<typeof passwordChangeInput>, currentToken: string) {
+  await rateLimit(`password:user:${userId}`, 10, 900);
+  const [user] = await db.select().from(users).where(eq(users.id, userId));
+  if (!user || !(await verify(user.passwordHash, input.currentPassword))) {
+    throw new HttpError(403, "Current password is incorrect");
+  }
+  await db.update(users).set({ passwordHash: await hashPassword(input.newPassword) }).where(eq(users.id, userId));
+  await db.delete(sessions).where(and(eq(sessions.userId, userId), ne(sessions.token, sha256(currentToken))));
 }
 
 export async function login(input: z.infer<typeof loginInput>, ip: string) {

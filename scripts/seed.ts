@@ -1,6 +1,7 @@
 import { config } from "dotenv";
 import { hash } from "@node-rs/argon2";
 import { Pool } from "pg";
+import { parseSheetId } from "../lib/sheet-url";
 
 config({ path: ".env.local" });
 
@@ -21,6 +22,31 @@ async function main() {
     [email, passwordHash],
   );
   console.log(res.rowCount ? `Created superuser ${email}` : `User ${email} already exists, left unchanged`);
+  await seedForm();
+}
+
+// The Internships sheet. Created once; after that the form is edited through the admin API,
+// so an existing form is never touched. Public columns are listed here because a column the
+// admin has not marked public stays private after a sync.
+const PUBLIC = ["Name", "Location", "Coverage", "Duration", "Deadline", "Year of study", "For whom", "Notes"];
+const HEADERS = ["Status", "Name", "Location", "Coverage", "Duration", "Deadline", "Link", "Year of study", "For whom", "Notes"];
+
+async function seedForm() {
+  const url = process.env.GOOGLE_SHEET_URL;
+  if (!url) return void console.log("GOOGLE_SHEET_URL not set, no form created");
+  const sheetId = parseSheetId(url);
+  if (!sheetId) throw new Error("GOOGLE_SHEET_URL is not a Google Sheets URL");
+  const sheetName = process.env.GOOGLE_SHEET_NAME?.trim() || "Sheet1";
+  const existing = await pool.query("select id from application_forms where google_sheet_id = $1 and sheet_name = $2", [sheetId, sheetName]);
+  if (existing.rowCount) return void console.log(`Form for "${sheetName}" already exists, left unchanged`);
+  const columns = HEADERS.map((header) => ({ header, public: PUBLIC.includes(header) }));
+  await pool.query(
+    `insert into application_forms
+       (title, google_sheet_id, sheet_name, key_column, link_column, status_column, deadline_column, schema_definition, created_by)
+     values ($1, $2, $3, 'Name', 'Link', 'Status', 'Deadline', $4, (select id from users where lower(email) = $5))`,
+    [sheetName, sheetId, sheetName, JSON.stringify({ columns }), email],
+  );
+  console.log(`Created form "${sheetName}". Run a sync to load it (POST /api/v1/admin/forms/<id>/sync or the cron).`);
 }
 
 main().finally(() => pool.end());
