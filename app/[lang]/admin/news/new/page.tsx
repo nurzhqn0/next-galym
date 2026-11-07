@@ -17,7 +17,7 @@ async function Create() {
     <>
       <AdminNav lang={lang} t={t.admin} current="news" superuser={user.role === "superuser"} />
       <AdminHeading title={t.admin.news.new} back={`/${lang}/admin/news`} backLabel={t.admin.back} />
-      <div className="max-w-[48rem]">
+      <div className="print-in max-w-[48rem]">
         <NewsForm lang={lang} t={t.admin} />
       </div>
     </>

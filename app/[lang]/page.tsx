@@ -1,11 +1,18 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { AnswerRow } from "@/components/answer-row";
+import { currentUser } from "@/lib/auth/guard";
 import { latestArchives, latestNews, openApplications } from "@/lib/data";
 import { DRIVE_URL, formatDate, formatSize } from "@/lib/site";
 import { getDictionary, getLocale } from "./dictionaries";
 
 const pad = "pl-[calc(var(--track)+1rem)] pr-4 md:pl-[calc(var(--track)+2rem)] md:pr-8";
 const wrap = "mx-auto max-w-[1240px]";
+
+/** Renders one or the other once the session is known. Reads the cookie, so wrap it in Suspense. */
+async function BySession({ signedIn, signedOut }: { signedIn: React.ReactNode; signedOut: React.ReactNode }) {
+  return (await currentUser()) ? signedIn : signedOut;
+}
 
 export default async function Home() {
   const lang = await getLocale();
@@ -150,23 +157,41 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Login: the one drenched band */}
+      {/* Login: the one drenched band. Signed in, it points to the account instead. */}
       <section className={`on-ink bg-ink text-stock ${pad} py-20`} aria-labelledby="login-h">
         <div className={`${wrap} grid gap-8 md:grid-cols-[1.4fr_1fr] md:items-end md:gap-16`}>
           <div>
             <h2 id="login-h" className="display max-w-[18ch] text-4xl md:text-6xl">
               {t.login.title}
             </h2>
-            <p className="mt-5 max-w-[48ch] text-lg">{t.login.text}</p>
+            <Suspense>
+              <BySession signedIn={null} signedOut={<p className="mt-5 max-w-[48ch] text-lg">{t.login.text}</p>} />
+            </Suspense>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <Link href={`/${lang}/login`} className="field field-solid label min-h-14 px-7 text-lg">
-              {t.login.login}
-            </Link>
-            <Link href={`/${lang}/register`} className="field label min-h-14 px-7 text-lg">
-              {t.login.register}
-            </Link>
-          </div>
+          <Suspense fallback={<div className="min-h-14" />}>
+            <BySession
+              signedIn={
+                <div className="flex flex-wrap gap-3">
+                  <Link href={`/${lang}/account`} className="field field-solid label min-h-14 px-7 text-lg">
+                    {t.nav.account}
+                  </Link>
+                  <Link href={`/${lang}/applications`} className="field label min-h-14 px-7 text-lg">
+                    {t.account.findOne}
+                  </Link>
+                </div>
+              }
+              signedOut={
+                <div className="flex flex-wrap gap-3">
+                  <Link href={`/${lang}/login`} className="field field-solid label min-h-14 px-7 text-lg">
+                    {t.login.login}
+                  </Link>
+                  <Link href={`/${lang}/register`} className="field label min-h-14 px-7 text-lg">
+                    {t.login.register}
+                  </Link>
+                </div>
+              }
+            />
+          </Suspense>
         </div>
       </section>
 

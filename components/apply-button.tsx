@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useMyAnswers } from "@/lib/stores/my-answers";
 import { useHydrated } from "./use-hydrated";
 
 type Labels = {
@@ -31,6 +32,7 @@ export function ApplyButton({ applicationId, applyUrl, lang, labels, name }: { a
         router.push(`/${lang}/login?next=${encodeURIComponent(`/${lang}/applications`)}`);
         return;
       }
+      if (res.status === 201) useMyAnswers.getState().clear();
       if (res.status === 201 || res.status === 409) return setState("done");
       setState(res.status === 410 ? "gone" : "error");
     } catch {

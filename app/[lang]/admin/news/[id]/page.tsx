@@ -6,8 +6,7 @@ import { DeleteButton } from "@/components/admin/delete-button";
 import { NewsForm } from "@/components/admin/news-form";
 import { PageShell } from "@/components/page-shell";
 import { adminPage } from "@/lib/auth/guard";
-import { HttpError } from "@/lib/http";
-import { getAdminNews } from "@/lib/services/news";
+import { adminNewsPost } from "@/lib/data";
 import { getDictionary, getLocale } from "../../../dictionaries";
 
 export async function generateMetadata() {
@@ -20,13 +19,13 @@ async function Edit({ params }: { params: PageProps<"/[lang]/admin/news/[id]">["
   const t = await getDictionary();
   const user = await adminPage(lang, `/${lang}/admin/news/${id}`);
   if (!z.uuid().safeParse(id).success) notFound();
-  const item = await getAdminNews(id).catch((e) => (e instanceof HttpError && e.status === 404 ? null : Promise.reject(e)));
+  const item = await adminNewsPost(id);
   if (!item) notFound();
   return (
     <>
       <AdminNav lang={lang} t={t.admin} current="news" superuser={user.role === "superuser"} />
       <AdminHeading title={t.admin.news.edit} back={`/${lang}/admin/news`} backLabel={t.admin.back} />
-      <div className="grid max-w-[48rem] gap-8">
+      <div className="print-in grid max-w-[48rem] gap-8">
         <NewsForm lang={lang} t={t.admin} initial={item} />
         <DeleteButton url={`/api/v1/admin/news/${item.id}`} back={`/${lang}/admin/news`} t={t.admin} />
       </div>

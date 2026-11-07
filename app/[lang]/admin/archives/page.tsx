@@ -4,10 +4,14 @@ import { AdminNav } from "@/components/admin/admin-nav";
 import { PAGE_SIZE, Pager, pageOf } from "@/components/admin/pager";
 import { PageShell } from "@/components/page-shell";
 import { adminPage } from "@/lib/auth/guard";
+import { adminArchiveList } from "@/lib/data";
 import { pickTranslation } from "@/lib/locale";
-import { listAdminArchives } from "@/lib/services/archives";
 import { formatDate, formatSize } from "@/lib/site";
 import { getDictionary, getLocale } from "../../dictionaries";
+
+// Coming back to this list within 30 s reuses the browser's copy. Save and delete land here and refresh it.
+// Not on edit pages: a stale form would overwrite newer data.
+export const unstable_dynamicStaleTime = 30;
 
 export async function generateMetadata() {
   return { title: (await getDictionary()).admin.tabs.archives };
@@ -18,7 +22,7 @@ async function List({ searchParams }: { searchParams: PageProps<"/[lang]/admin/a
   const t = await getDictionary();
   const user = await adminPage(lang, `/${lang}/admin/archives`);
   const page = pageOf((await searchParams).page);
-  const { items, total } = await listAdminArchives(PAGE_SIZE, (page - 1) * PAGE_SIZE);
+  const { items, total } = await adminArchiveList(PAGE_SIZE, (page - 1) * PAGE_SIZE);
   return (
     <>
       <AdminNav lang={lang} t={t.admin} current="archives" superuser={user.role === "superuser"} />
@@ -27,8 +31,8 @@ async function List({ searchParams }: { searchParams: PageProps<"/[lang]/admin/a
       </Link>
       {items.length ? (
         <ul className="mt-8 border-b-[2.5px] border-ink">
-          {items.map((a) => (
-            <li key={a.id} className="border-t-[2.5px] border-ink">
+          {items.map((a, i) => (
+            <li key={a.id} style={{ ["--i" as string]: Math.min(i, 3) }} className="print-in border-t-[2.5px] border-ink">
               <Link
                 href={`/${lang}/admin/archives/${a.id}`}
                 className="grid gap-2 px-2 py-5 hover:bg-stock-lit md:grid-cols-[1fr_auto] md:items-center md:gap-6"

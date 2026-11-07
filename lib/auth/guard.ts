@@ -1,13 +1,15 @@
 import "server-only";
 import { notFound, redirect } from "next/navigation";
+import { cache } from "react";
 import { HttpError } from "@/lib/http";
 import { getSessionUser, type Role } from "@/lib/services/auth";
 import { readSessionToken } from "./cookie";
 
-export async function currentUser() {
+/** Once per request: the header and the page share one session lookup. Never cached across requests. */
+export const currentUser = cache(async () => {
   const token = await readSessionToken();
   return token ? getSessionUser(token) : null;
-}
+});
 
 export async function requireUser() {
   const user = await currentUser();
