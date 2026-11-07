@@ -99,7 +99,7 @@ async function main_() {
 
   await db.delete(s.archives).where(like(s.archives.fileUrl, "https://example.com/demo-%"));
   for (const [i, t] of ["[DEMO] Annual report", "[DEMO] Selection rules"].entries()) {
-    const [a] = await db.insert(s.archives).values({ fileUrl: `https://example.com/demo-${i}.pdf`, fileType: "application/pdf", fileSize: 1_200_000 * (i + 1), uploadedBy: admin.id }).returning();
+    const [a] = await db.insert(s.archives).values({ fileUrl: `https://example.com/demo-${i}.pdf`, uploadedBy: admin.id }).returning();
     await db.insert(s.archiveTranslations).values({ archiveId: a.id, locale: "en", title: t, description: i ? null : "A synthetic document used to check archive rows." });
   }
   console.log(`Demo data ready. Logins: demo-admin@example.test / demo-root@example.test (superuser) / demo-student@example.test, password ${DEMO_PASSWORD}`);

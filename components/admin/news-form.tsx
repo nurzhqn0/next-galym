@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import type { Dict } from "@/app/[lang]/dictionaries/en";
+import { isBlobUrl } from "@/lib/images";
 import { locales, type Locale } from "@/lib/locale";
 import { Field, LocaleFieldset, SaveBar, useSave } from "./form-parts";
+import { ImageField } from "./image-field";
 
 type Status = "draft" | "published" | "archived";
 const statuses: Status[] = ["draft", "published", "archived"];
@@ -11,12 +14,16 @@ export type NewsInitial = {
   id: string;
   slug: string;
   status: Status;
+  coverImageUrl: string | null;
   translations: { locale: Locale; title: string; content: string }[];
 };
 
 export function NewsForm({ lang, t, initial }: { lang: string; t: Dict["admin"]; initial?: NewsInitial }) {
   const { busy, error, save, invalid } = useSave(t, `/${lang}/admin/news`);
   const saved = (l: Locale) => initial?.translations.find((x) => x.locale === l);
+  // A cover from outside the Blob store never showed on the site; the form treats it as none.
+  const [cover, setCover] = useState(initial?.coverImageUrl && isBlobUrl(initial.coverImageUrl) ? initial.coverImageUrl : null);
+  const [uploading, setUploading] = useState(false);
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -30,7 +37,7 @@ export function NewsForm({ lang, t, initial }: { lang: string; t: Dict["admin"];
       // Emptied while editing: remove it, so the site falls back to English.
       else if (saved(l)) translations[l] = null;
     }
-    const payload = { slug: text("slug").trim(), status: text("status"), translations };
+    const payload = { slug: text("slug").trim(), status: text("status"), coverImageUrl: cover, translations };
     if (initial) save("PATCH", `/api/v1/admin/news/${initial.id}`, payload);
     else save("POST", "/api/v1/admin/news", payload);
   }
@@ -61,6 +68,15 @@ export function NewsForm({ lang, t, initial }: { lang: string; t: Dict["admin"];
           ))}
         </select>
       </Field>
+      <ImageField
+        id="cover"
+        label={t.news.cover}
+        hint={t.news.coverHint}
+        value={cover}
+        onChange={(image) => setCover(image?.url ?? null)}
+        onUploading={setUploading}
+        t={t}
+      />
       <p>{t.translationNote}</p>
       {locales.map((l) => {
         const en = l === "en";
@@ -88,7 +104,7 @@ export function NewsForm({ lang, t, initial }: { lang: string; t: Dict["admin"];
           </LocaleFieldset>
         );
       })}
-      <SaveBar busy={busy} error={error} t={t} />
+      <SaveBar busy={busy} error={error} t={t} disabled={uploading} />
     </form>
   );
 }

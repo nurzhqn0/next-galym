@@ -1,23 +1,30 @@
 "use client";
 
+import { useState } from "react";
 import type { Dict } from "@/app/[lang]/dictionaries/en";
+import { isBlobUrl } from "@/lib/images";
 import { locales, type Locale } from "@/lib/locale";
 import { Field, LocaleFieldset, SaveBar, useSave } from "./form-parts";
-
-const MB = 1024 * 1024;
-const fileTypes = ["PDF", "DOCX", "XLSX", "PPTX", "ZIP", "MP4"];
+import { ImageField } from "./image-field";
 
 export type ArchiveInitial = {
   id: string;
   fileUrl: string;
-  fileType: string;
-  fileSize: number;
+  imageUrl: string | null;
+  fileType: string | null;
+  fileSize: number | null;
   translations: { locale: Locale; title: string; description: string | null }[];
 };
+
+type Photo = { url: string; contentType: string | null; size: number | null };
 
 export function ArchiveForm({ lang, t, initial }: { lang: string; t: Dict["admin"]; initial?: ArchiveInitial }) {
   const { busy, error, save, invalid } = useSave(t, `/${lang}/admin/archives`);
   const saved = (l: Locale) => initial?.translations.find((x) => x.locale === l);
+  const [photo, setPhoto] = useState<Photo | null>(
+    initial?.imageUrl && isBlobUrl(initial.imageUrl) ? { url: initial.imageUrl, contentType: initial.fileType, size: initial.fileSize } : null,
+  );
+  const [uploading, setUploading] = useState(false);
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -33,8 +40,9 @@ export function ArchiveForm({ lang, t, initial }: { lang: string; t: Dict["admin
     }
     const payload = {
       fileUrl: text("fileUrl"),
-      fileType: text("fileType"),
-      fileSize: Math.round(Number(text("fileSize")) * MB),
+      imageUrl: photo?.url ?? null,
+      fileType: photo?.contentType ?? null,
+      fileSize: photo?.size ?? null,
       translations,
     };
     if (initial) save("PATCH", `/api/v1/admin/archives/${initial.id}`, payload);
@@ -55,40 +63,7 @@ export function ArchiveForm({ lang, t, initial }: { lang: string; t: Dict["admin
           aria-describedby="fileUrl-hint"
         />
       </Field>
-      <div className="grid gap-6 sm:grid-cols-2">
-        <Field id="fileType" label={t.archives.fileType} hint={t.archives.fileTypeHint}>
-          <input
-            id="fileType"
-            name="fileType"
-            list="file-types"
-            required
-            maxLength={120}
-            defaultValue={initial?.fileType}
-            className="input"
-            aria-invalid={invalid("fileType")}
-            aria-describedby="fileType-hint"
-          />
-          <datalist id="file-types">
-            {fileTypes.map((v) => (
-              <option key={v} value={v} />
-            ))}
-          </datalist>
-        </Field>
-        <Field id="fileSize" label={t.archives.fileSize}>
-          <input
-            id="fileSize"
-            name="fileSize"
-            type="number"
-            inputMode="decimal"
-            required
-            min={0.01}
-            step={0.01}
-            defaultValue={initial ? Number((initial.fileSize / MB).toFixed(2)) : undefined}
-            className="input"
-            aria-invalid={invalid("fileSize")}
-          />
-        </Field>
-      </div>
+      <ImageField id="photo" label={t.archives.photo} hint={t.archives.photoHint} value={photo?.url ?? null} onChange={setPhoto} onUploading={setUploading} t={t} />
       <p>{t.translationNote}</p>
       {locales.map((l) => {
         const en = l === "en";
@@ -114,7 +89,7 @@ export function ArchiveForm({ lang, t, initial }: { lang: string; t: Dict["admin
           </LocaleFieldset>
         );
       })}
-      <SaveBar busy={busy} error={error} t={t} />
+      <SaveBar busy={busy} error={error} t={t} disabled={uploading} />
     </form>
   );
 }

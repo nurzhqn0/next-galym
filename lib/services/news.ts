@@ -3,7 +3,9 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { news, newsTranslations } from "@/lib/db/schema";
 import { HttpError, isUniqueViolation } from "@/lib/http";
+import { isBlobUrl } from "@/lib/images";
 import { locales, pickTranslation, type Locale } from "@/lib/locale";
+import { deleteImage } from "@/lib/services/images";
 
 const translation = z.object({ title: z.string().trim().min(1).max(300), content: z.string().min(1).max(100_000) });
 const optionalTranslations = z.object({
@@ -15,17 +17,19 @@ const optionalTranslations = z.object({
 const editTranslations = optionalTranslations.extend({ kk: translation.nullish(), ru: translation.nullish() });
 const status = z.enum(["draft", "published", "archived"]);
 const slug = z.string().max(200).regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Lowercase letters, digits and dashes only");
+// Only files uploaded through POST /admin/images: the site renders covers from that store alone.
+const cover = z.httpUrl().refine(isBlobUrl, "Upload the image with POST /api/v1/admin/images first").nullish();
 
 export const newsCreate = z.object({
   slug,
   status: status.default("draft"),
-  coverImageUrl: z.httpUrl().nullish(),
+  coverImageUrl: cover,
   translations: optionalTranslations.refine((t) => t.en, "An English translation is required"),
 });
 export const newsUpdate = z.object({
   slug: slug.optional(),
   status: status.optional(),
-  coverImageUrl: z.httpUrl().nullish(),
+  coverImageUrl: cover,
   translations: editTranslations.optional(),
 });
 
@@ -115,10 +119,12 @@ export async function createNews(input: z.infer<typeof newsCreate>, authorId: st
 }
 
 export async function updateNews(id: string, input: z.infer<typeof newsUpdate>) {
+  let replacedCover: string | null = null;
   try {
-    return await db.transaction(async (tx) => {
+    const updated = await db.transaction(async (tx) => {
       const [current] = await tx.select().from(news).where(eq(news.id, id));
       if (!current) throw new HttpError(404, "News not found");
+      if (input.coverImageUrl !== undefined && input.coverImageUrl !== current.coverImageUrl) replacedCover = current.coverImageUrl;
       const fields = {
         ...(input.slug !== undefined && { slug: input.slug }),
         ...(input.status !== undefined && { status: input.status }),
@@ -132,6 +138,9 @@ export async function updateNews(id: string, input: z.infer<typeof newsUpdate>) 
       if (input.translations) await upsertTranslations(tx, id, input.translations);
       return (await withTranslations([row], tx))[0];
     });
+    // Only after the commit: a rolled-back save must keep its old cover.
+    await deleteImage(replacedCover);
+    return updated;
   } catch (e) {
     if (isUniqueViolation(e)) throw new HttpError(409, "Slug already in use");
     throw e;
@@ -139,6 +148,7 @@ export async function updateNews(id: string, input: z.infer<typeof newsUpdate>) 
 }
 
 export async function deleteNews(id: string) {
-  const res = await db.delete(news).where(eq(news.id, id)).returning({ id: news.id });
+  const res = await db.delete(news).where(eq(news.id, id)).returning({ id: news.id, coverImageUrl: news.coverImageUrl });
   if (!res.length) throw new HttpError(404, "News not found");
+  await deleteImage(res[0].coverImageUrl);
 }

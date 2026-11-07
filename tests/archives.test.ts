@@ -10,8 +10,6 @@ describe("archives", () => {
     const a = await createArchive(
       {
         fileUrl: `https://example.com/${PREFIX}-${Date.now()}.pdf`,
-        fileType: "PDF",
-        fileSize: 1000,
         translations: { en: { title: "EN" }, kk: { title: "KK", description: "d" } },
       },
       admin.id,

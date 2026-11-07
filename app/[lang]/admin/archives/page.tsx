@@ -6,7 +6,7 @@ import { PageShell } from "@/components/page-shell";
 import { adminPage } from "@/lib/auth/guard";
 import { adminArchiveList } from "@/lib/data";
 import { pickTranslation } from "@/lib/locale";
-import { formatDate, formatSize } from "@/lib/site";
+import { formatDate } from "@/lib/site";
 import { getDictionary, getLocale } from "../../dictionaries";
 
 // Coming back to this list within 30 s reuses the browser's copy. Save and delete land here and refresh it.
@@ -39,9 +39,7 @@ async function List({ searchParams }: { searchParams: PageProps<"/[lang]/admin/a
               >
                 <span className="min-w-0">
                   <span className="block break-words text-xl font-bold">{pickTranslation(a.translations, lang)?.title ?? a.fileUrl}</span>
-                  <span className="label block text-ink">
-                    {a.fileType} · {formatSize(a.fileSize)}
-                  </span>
+                  <span className="label block break-all text-ink">{new URL(a.fileUrl).hostname}</span>
                 </span>
                 <span className="label text-ink">
                   {t.admin.updated} {formatDate(a.updatedAt, lang)}

@@ -48,7 +48,7 @@ export function Field({ id, label, hint, children }: { id: string; label: string
   );
 }
 
-export function SaveBar({ busy, error, t }: { busy: boolean; error: string | null; t: Dict["admin"] }) {
+export function SaveBar({ busy, error, t, disabled = false }: { busy: boolean; error: string | null; t: Dict["admin"]; disabled?: boolean }) {
   const hydrated = useHydrated();
   return (
     <>
@@ -57,7 +57,7 @@ export function SaveBar({ busy, error, t }: { busy: boolean; error: string | nul
           {error}
         </p>
       )}
-      <button type="submit" disabled={busy || !hydrated} className="field field-solid label min-h-14 justify-center text-lg disabled:opacity-70">
+      <button type="submit" disabled={busy || disabled || !hydrated} className="field field-solid label min-h-14 justify-center text-lg disabled:opacity-70">
         {busy ? t.saving : t.save}
       </button>
     </>
