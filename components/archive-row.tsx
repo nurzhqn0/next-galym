@@ -1,12 +1,12 @@
 import Image from "next/image";
-import { isBlobUrl } from "@/lib/images";
+import { isShownImageUrl } from "@/lib/images";
 
 export type ArchiveItem = { id: string; fileUrl: string; imageUrl: string | null; title?: string; description?: string | null };
 
 /** One archive entry, the whole row a link: lettered bubble, title, description, and the photo when it has one. */
 export function ArchiveRow({ item, letter, openLabel }: { item: ArchiveItem; letter: string; openLabel: string }) {
   // next/image loads only from the Blob store; anything else is left out rather than breaking the page.
-  const photo = item.imageUrl && isBlobUrl(item.imageUrl) ? item.imageUrl : null;
+  const photo = item.imageUrl && isShownImageUrl(item.imageUrl) ? item.imageUrl : null;
   return (
     <a
       href={item.fileUrl}

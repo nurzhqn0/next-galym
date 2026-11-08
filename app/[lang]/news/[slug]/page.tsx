@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { cacheLife, cacheTag } from "next/cache";
-import { isBlobUrl } from "@/lib/images";
+import { isShownImageUrl } from "@/lib/images";
 import { getPublicNews } from "@/lib/services/news";
 import { formatDate } from "@/lib/site";
 import type { Locale } from "@/lib/locale";
@@ -35,7 +35,7 @@ async function Article({ params }: { params: PageProps<"/[lang]/news/[slug]">["p
           </p>
         )}
         {/* A cover saved before uploads existed may live elsewhere; next/image only loads from the Blob store. */}
-        {n.coverImageUrl && isBlobUrl(n.coverImageUrl) && (
+        {n.coverImageUrl && isShownImageUrl(n.coverImageUrl) && (
           <div className="relative mt-8 aspect-video border-[2.5px] border-ink bg-stock-lit">
             <Image src={n.coverImageUrl} alt="" fill preload sizes="(min-width: 48rem) 44rem, 100vw" className="object-cover" />
           </div>

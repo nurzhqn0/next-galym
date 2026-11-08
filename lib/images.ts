@@ -22,3 +22,14 @@ export function isBlobUrl(url: string) {
     return false;
   }
 }
+
+/** Images pages may show. In dev, the picsum.photos placeholders from `npm run db:photos` show too. */
+export function isShownImageUrl(url: string) {
+  if (isBlobUrl(url)) return true;
+  if (process.env.NODE_ENV !== "development") return false;
+  try {
+    return new URL(url).hostname === "picsum.photos";
+  } catch {
+    return false;
+  }
+}
