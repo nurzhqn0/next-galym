@@ -13,13 +13,13 @@ export const GET = route(async (_req, ctx: Ctx) => {
 export const PATCH = route(async (req, ctx: Ctx) => {
   await requireAdmin();
   const updated = await updateArchive(uuid((await ctx.params).id), await body(req, archiveUpdate));
-  revalidateTag("archives", "max");
+  revalidateTag("archives", { expire: 0 });
   return updated;
 });
 
 export const DELETE = route(async (_req, ctx: Ctx) => {
   await requireAdmin();
   await deleteArchive(uuid((await ctx.params).id));
-  revalidateTag("archives", "max");
+  revalidateTag("archives", { expire: 0 });
   return { ok: true };
 });

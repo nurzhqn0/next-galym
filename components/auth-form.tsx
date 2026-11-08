@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import type { Dict } from "@/app/[lang]/dictionaries/en";
+import { useMyAnswers } from "@/lib/stores/my-answers";
 import { useHydrated } from "./use-hydrated";
 
 /** Only same-site paths: blocks open redirects through ?next=. */
@@ -33,7 +34,12 @@ export function AuthForm({ mode, lang, t }: { mode: "login" | "register"; lang: 
         body: JSON.stringify(data),
       });
       if (res.ok) {
-        router.push(safeNext(params.get("next"), `/${lang}/applications`));
+        // Another account may have used this tab: never show its answers to this one.
+        useMyAnswers.getState().clear();
+        // Admins and the superuser start on the admin page; everyone else on the applications.
+        const user: { role?: string } | null = await res.json().catch(() => null);
+        const home = user?.role && user.role !== "user" ? `/${lang}/admin/news` : `/${lang}/applications`;
+        router.push(safeNext(params.get("next"), home));
         router.refresh();
         return;
       }

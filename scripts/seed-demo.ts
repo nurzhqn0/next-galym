@@ -27,7 +27,7 @@ const db = drizzle(pool, { schema: s });
 async function main_() {
   const passwordHash = await hash(DEMO_PASSWORD, { algorithm: 2 });
   const find = async (email: string) => (await db.select().from(s.users).where(sql`lower(${s.users.email}) = ${email}`))[0];
-  const ensureUser = async (email: string, fullName: string, role: "user" | "admin") => {
+  const ensureUser = async (email: string, fullName: string, role: "user" | "admin" | "superuser") => {
     const existing = await find(email);
     if (existing) {
       await db.update(s.users).set({ role, fullName, isActive: true, passwordHash }).where(eq(s.users.id, existing.id));
@@ -37,6 +37,7 @@ async function main_() {
   };
   const admin = await ensureUser("demo-admin@example.test", "[DEMO] Admin Aigerim", "admin");
   const student = await ensureUser("demo-student@example.test", "[DEMO] Student Dauren", "user");
+  await ensureUser("demo-root@example.test", "[DEMO] Superuser Asel", "superuser");
 
   // Two forms, four listings. Long values are deliberate: they test wrapping in all locales.
   await db.delete(s.applicationForms).where(like(s.applicationForms.title, "[DEMO]%"))
@@ -98,10 +99,10 @@ async function main_() {
 
   await db.delete(s.archives).where(like(s.archives.fileUrl, "https://example.com/demo-%"));
   for (const [i, t] of ["[DEMO] Annual report", "[DEMO] Selection rules"].entries()) {
-    const [a] = await db.insert(s.archives).values({ fileUrl: `https://example.com/demo-${i}.pdf`, fileType: "application/pdf", fileSize: 1_200_000 * (i + 1), uploadedBy: admin.id }).returning();
+    const [a] = await db.insert(s.archives).values({ fileUrl: `https://example.com/demo-${i}.pdf`, uploadedBy: admin.id }).returning();
     await db.insert(s.archiveTranslations).values({ archiveId: a.id, locale: "en", title: t, description: i ? null : "A synthetic document used to check archive rows." });
   }
-  console.log(`Demo data ready. Logins: demo-admin@example.test / demo-student@example.test, password ${DEMO_PASSWORD}`);
+  console.log(`Demo data ready. Logins: demo-admin@example.test / demo-root@example.test (superuser) / demo-student@example.test, password ${DEMO_PASSWORD}`);
 }
 
 main_().finally(() => pool.end());

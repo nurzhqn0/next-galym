@@ -97,8 +97,10 @@ export const newsTranslations = pgTable(
 export const archives = pgTable("archives", {
   id: uuid("id").primaryKey().defaultRandom(),
   fileUrl: text("file_url").notNull(),
-  fileType: varchar("file_type", { length: 120 }).notNull(),
-  fileSize: integer("file_size").notNull(),
+  // The optional photo shown with the link (Vercel Blob), and its type and size from the upload.
+  imageUrl: text("image_url"),
+  fileType: varchar("file_type", { length: 120 }),
+  fileSize: integer("file_size"),
   uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: "set null" }),
   ...timestamps,
 });

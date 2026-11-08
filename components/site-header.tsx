@@ -18,6 +18,7 @@ export async function SiteHeader({ lang, t }: { lang: Locale; t: Dict }) {
   const account = user
     ? { href: `/${lang}/account`, label: t.nav.account }
     : { href: `/${lang}/login`, label: t.nav.login };
+  const admin = user && user.role !== "user" ? { href: `/${lang}/admin/news`, label: t.nav.admin } : null;
 
   return (
     <header className="relative pl-[calc(var(--track)+1rem)] pr-4 pt-4 md:pl-[calc(var(--track)+2rem)] md:pr-8">
@@ -33,6 +34,11 @@ export async function SiteHeader({ lang, t }: { lang: Locale; t: Dict }) {
               {i.label}
             </Link>
           ))}
+          {admin && (
+            <Link href={admin.href} className="field label">
+              {admin.label}
+            </Link>
+          )}
           <Link href={account.href} className="field field-solid label">
             {account.label}
           </Link>
@@ -48,6 +54,11 @@ export async function SiteHeader({ lang, t }: { lang: Locale; t: Dict }) {
                 {i.label}
               </Link>
             ))}
+            {admin && (
+              <Link href={admin.href} className="field label justify-start">
+                {admin.label}
+              </Link>
+            )}
             <Link href={account.href} className="field field-solid label justify-start">
               {account.label}
             </Link>

@@ -15,6 +15,20 @@
       "when": 1793945655451,
       "tag": "0001_burly_morph",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794043947659,
+      "tag": "0002_archive_links",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794044526897,
+      "tag": "0003_archive_photos",
+      "breakpoints": true
     }
   ]
 }

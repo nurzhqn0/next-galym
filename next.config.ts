@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
     agentFeedback: true,
   },
   poweredByHeader: false,
+  images: {
+    // News covers uploaded to Vercel Blob (lib/services/images.ts).
+    remotePatterns: [{ protocol: "https", hostname: "*.public.blob.vercel-storage.com" }],
+  },
   async headers() {
     return [
       {

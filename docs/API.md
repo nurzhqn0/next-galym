@@ -16,7 +16,7 @@ Paginated lists take `limit` (1-100, default 20) and `offset`. Admin lists retur
 | GET | `/health` | `{ ok: true }` or 503. Checks the database. |
 | GET | `/news?lang=en\|kk\|ru` | Published news. Falls back to English. |
 | GET | `/news/:slug?lang=` | One published item. |
-| GET | `/archives?lang=` | Archive files with title and description. |
+| GET | `/archives?lang=` | Archive links (`fileUrl`) with title, description and optional `imageUrl`. |
 | GET | `/applications?formId=` | Live listings: `{ id, formId, formTitle, applyUrl, data }`. `data` holds only columns marked public; the link column is never in `data`. |
 | GET | `/applications/:id` | One live listing. 404 if closed or removed. |
 
@@ -39,12 +39,17 @@ All routes need an admin session.
 ### News: `/admin/news`
 - `GET ?limit&offset` list with all translations. `GET /:id`.
 - `POST` `{ slug, status?: draft|published|archived, coverImageUrl?, translations: { en (required), kk?, ru? : { title, content } } }`.
-- `PATCH /:id` any subset of the same fields. `DELETE /:id`.
+- `PATCH /:id` any subset of the same fields; `kk: null` or `ru: null` in `translations` removes that translation (English cannot be removed). `DELETE /:id`.
+- `coverImageUrl` must be a URL returned by `POST /admin/images`; `null` removes the cover. Replacing or removing a cover, or deleting the post, deletes the old file.
+
+### Images: `/admin/images`
+- `POST` `multipart/form-data` with the field `file`: a JPEG, PNG or WebP up to 4 MB, checked from the file's bytes. `201 { url, contentType, size }`, stored in Vercel Blob. `413` too large, `415` not one of those types.
 
 ### Archives: `/admin/archives`
 - `GET ?limit&offset`, `GET /:id`.
-- `POST` `{ fileUrl, fileType, fileSize, translations: { en (required), kk?, ru? : { title, description? } } }`.
-- `PATCH /:id`, `DELETE /:id`. Files are linked by URL for now; there is no upload endpoint yet.
+- `POST` `{ fileUrl, imageUrl?, fileType?, fileSize?, translations: { en (required), kk?, ru? : { title, description? } } }`. An entry is a public link to a file, folder, video or page, with an optional photo.
+- The photo: `imageUrl` is a URL from `POST /admin/images`, and `fileType` and `fileSize` are the `contentType` and `size` it returned (required with `imageUrl`). `imageUrl: null` removes the photo; replacing or removing it, or deleting the entry, deletes the old file.
+- `PATCH /:id` any subset; `kk: null` or `ru: null` removes that translation, as for news. `DELETE /:id`.
 
 ### Forms (Google Sheets): `/admin/forms`
 - `GET` list, `GET /:id`.
@@ -78,4 +83,4 @@ How a sync treats rows:
 
 ## Environment
 
-See `.env.example`. Required in production: `DATABASE_URL`, `CRON_SECRET`. `SUPERUSER_*` and `GOOGLE_SHEET_*` are used only by `npm run db:seed`.
+See `.env.example`. Required in production: `DATABASE_URL`, `CRON_SECRET`, `BLOB_READ_WRITE_TOKEN` (news cover uploads). `SUPERUSER_*` and `GOOGLE_SHEET_*` are used only by `npm run db:seed`.
