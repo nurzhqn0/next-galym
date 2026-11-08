@@ -12,13 +12,6 @@ const nextConfig: NextConfig = {
     // News covers uploaded to Vercel Blob (lib/services/images.ts).
     remotePatterns: [
       { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
-      // Dev-only placeholders from `npm run db:photos`; picsum redirects to fastly.picsum.photos.
-      ...(process.env.NODE_ENV === "development"
-        ? [
-            { protocol: "https" as const, hostname: "picsum.photos" },
-            { protocol: "https" as const, hostname: "fastly.picsum.photos" },
-          ]
-        : []),
     ],
   },
   async headers() {

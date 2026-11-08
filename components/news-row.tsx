@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { isShownImageUrl } from "@/lib/images";
+import { isBlobUrl } from "@/lib/images";
 import { formatDate } from "@/lib/site";
 
 export type NewsItem = { id: string; slug: string; coverImageUrl: string | null; publishedAt: Date | string | null; title?: string };
@@ -11,7 +11,7 @@ export function NewsRow({ item: n, lang, className = "", style }: { item: NewsIt
     <li style={style} className={`grid gap-1 border-t-[2.5px] border-ink py-5 md:grid-cols-[14rem_1fr] md:gap-8 ${className}`}>
       {/* Left column: the photo, with the date under it. */}
       <div className="grid content-start gap-3">
-        {n.coverImageUrl && isShownImageUrl(n.coverImageUrl) && (
+        {n.coverImageUrl && isBlobUrl(n.coverImageUrl) && (
           <Link href={`/${lang}/news/${n.slug}`} tabIndex={-1} aria-hidden="true" className="relative block aspect-[4/3] w-40 border-[2.5px] border-ink bg-stock-lit">
             <Image src={n.coverImageUrl} alt="" fill sizes="10rem" className="object-cover" />
           </Link>

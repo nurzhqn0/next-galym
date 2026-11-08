@@ -5,7 +5,7 @@ import { AnswerRow } from "@/components/answer-row";
 import { ArchiveRow } from "@/components/archive-row";
 import { currentUser } from "@/lib/auth/guard";
 import { latestArchives, latestNews, openApplications } from "@/lib/data";
-import { isShownImageUrl } from "@/lib/images";
+import { isBlobUrl } from "@/lib/images";
 import { formatDate } from "@/lib/site";
 import { getDictionary, getLocale } from "./dictionaries";
 
@@ -148,7 +148,7 @@ export default async function Home() {
   <Link href={`/${lang}/news/${n.slug}`} className="inline-block py-2 text-xl font-bold leading-snug hover:underline md:text-2xl">
     {n.title}
   </Link>
-  {n.coverImageUrl && isShownImageUrl(n.coverImageUrl) && (
+  {n.coverImageUrl && isBlobUrl(n.coverImageUrl) && (
     <Link href={`/${lang}/news/${n.slug}`} tabIndex={-1} aria-hidden="true" className="relative block aspect-video border-[2.5px] border-ink bg-stock-lit">
       <Image src={n.coverImageUrl} alt="" fill sizes="(min-width: 768px) 16rem, 9rem" className="object-cover" />
     </Link>
