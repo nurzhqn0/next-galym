@@ -32,11 +32,15 @@ function createDb() {
 
 // Lazy: the pool is created on first query, so `next build` works without DATABASE_URL.
 let instance: Db | undefined;
+const bound = new Map<string | symbol, unknown>();
 export const db = new Proxy({} as Db, {
   get(_t, prop) {
     instance ??= createDb();
     const value = Reflect.get(instance, prop);
-    return typeof value === "function" ? value.bind(instance) : value;
+    if (typeof value !== "function") return value;
+    let fn = bound.get(prop);
+    if (!fn) bound.set(prop, (fn = value.bind(instance)));
+    return fn;
   },
 });
 export { schema };

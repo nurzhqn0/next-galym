@@ -54,8 +54,13 @@ async function withTranslations(rows: (typeof archives.$inferSelect)[], exec: Pi
 }
 
 export async function listArchives(lang: Locale, limit: number, offset: number) {
-  const rows = await db.select().from(archives).orderBy(desc(archives.createdAt)).limit(limit).offset(offset);
-  return (await withTranslations(rows)).map((a) => {
+  const rows = await db.query.archives.findMany({
+    orderBy: desc(archives.createdAt),
+    limit,
+    offset,
+    with: { translations: true },
+  });
+  return rows.map((a) => {
     const t = pickTranslation(a.translations, lang);
     return {
       id: a.id,

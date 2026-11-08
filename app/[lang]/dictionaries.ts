@@ -1,3 +1,5 @@
+import "server-only";
+import { cache } from "react";
 import { lang } from "next/root-params";
 import { notFound } from "next/navigation";
 import { locales, type Locale } from "@/lib/locale";
@@ -9,7 +11,8 @@ const dictionaries: Record<Locale, () => Promise<Dict>> = {
   ru: () => import("./dictionaries/ru").then((m) => m.default),
 };
 
-export const hasLocale = (v: string): v is Locale => (locales as readonly string[]).includes(v);
+export const hasLocale = (v: string): v is Locale =>
+  (locales as readonly string[]).includes(v);
 
 export async function getLocale(): Promise<Locale> {
   const l = await lang();
@@ -17,6 +20,6 @@ export async function getLocale(): Promise<Locale> {
   return l;
 }
 
-export async function getDictionary() {
-  return dictionaries[await getLocale()]();
-}
+export const getDictionary = cache(async () =>
+  dictionaries[await getLocale()](),
+);
