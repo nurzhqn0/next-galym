@@ -17,20 +17,10 @@ function createPool() {
     statement_timeout: 20_000,
   });
   // An idle client dropping must not crash the process.
-  pool.on("error", (e) => console.error("pg pool error", { code: (e as { code?: string }).code }));
-  // TEMP timing: remove after measuring.
-  pool.on("connect", () => console.log("[db] opened a new connection"));
-  const query = pool.query.bind(pool) as (...a: unknown[]) => Promise<unknown>;
-  pool.query = (async (...args: unknown[]) => {
-    const t = performance.now();
-    try {
-      return await query(...args);
-    } finally {
-      const first = args[0] as string | { text: string };
-      const text = typeof first === "string" ? first : first.text;
-      console.log(`[db] ${Math.round(performance.now() - t)}ms  ${text.replace(/\s+/g, " ").slice(0, 70)}`);
-    }
-  }) as unknown as typeof pool.query;
+  pool.on("error", (e) =>
+    console.error("pg pool error", { code: (e as { code?: string }).code }),
+  );
+
   attachDatabasePool(pool);
   return pool;
 }
@@ -45,11 +35,15 @@ function createDb() {
 
 // Lazy: the pool is created on first query, so `next build` works without DATABASE_URL.
 let instance: Db | undefined;
+const bound = new Map<string | symbol, unknown>();
 export const db = new Proxy({} as Db, {
   get(_t, prop) {
     instance ??= createDb();
     const value = Reflect.get(instance, prop);
-    return typeof value === "function" ? value.bind(instance) : value;
+    if (typeof value !== "function") return value;
+    let fn = bound.get(prop);
+    if (!fn) bound.set(prop, (fn = value.bind(instance)));
+    return fn;
   },
 });
 export { schema };
