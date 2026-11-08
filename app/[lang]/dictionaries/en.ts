@@ -72,6 +72,9 @@ const en = {
     empty: "No documents yet.",
     all: "All archives",
     openLink: "Open",
+    more: "Show more",
+    loading: "Loading…",
+    retry: "Not loaded. Try again",
   },
   auth: {
     loginTitle: "Log In",
@@ -142,13 +145,13 @@ const en = {
       content: "Text",
       contentHint: "A blank line starts a new paragraph.",
       cover: "Cover image",
-      coverHint: "JPEG, PNG or WebP, up to 4 MB. Shown above the text of the post.",
+      coverHint: "JPEG, PNG or WebP. Shown above the text of the post.",
     },
     image: {
       choose: "Choose image",
       remove: "Remove image",
       uploading: "Uploading…",
-      error: "Could not upload. Choose a JPEG, PNG or WebP under 4 MB.",
+      error: "Could not upload. Choose a JPEG, PNG or WebP image.",
     },
     archives: {
       new: "New document",
@@ -159,7 +162,7 @@ const en = {
       docTitle: "Title",
       description: "Description",
       photo: "Photo",
-      photoHint: "Optional. JPEG, PNG or WebP, up to 4 MB. Shown next to the link.",
+      photoHint: "Optional. JPEG, PNG or WebP. Shown next to the link.",
     },
     admins: {
       intro: "Admins can edit news and archives. Only the superuser can make or remove admins.",

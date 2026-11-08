@@ -1,7 +1,10 @@
-import { ArchiveRow } from "@/components/archive-row";
+import { ArchiveFeed } from "@/components/archive-feed";
 import { PageShell } from "@/components/page-shell";
-import { latestArchives } from "@/lib/data";
+import { archiveCount, latestArchives } from "@/lib/data";
 import { getDictionary, getLocale } from "../dictionaries";
+
+// Ten at a time: the bubbles run A to J in every batch, like one block of an answer sheet.
+const BATCH = 10;
 
 export async function generateMetadata() {
   return { title: (await getDictionary()).archive.title };
@@ -10,14 +13,11 @@ export async function generateMetadata() {
 export default async function ArchivesPage() {
   const lang = await getLocale();
   const t = await getDictionary();
-  const items = await latestArchives(lang, 100);
+  // The first ten come with the page; the feed loads the rest as the reader scrolls.
+  const [items, total] = await Promise.all([latestArchives(lang, BATCH), archiveCount()]);
   return (
     <PageShell title={t.archive.title}>
-      <div className="grid gap-4">
-        {items.map((a, i) => (
-          <ArchiveRow key={a.id} item={a} letter={String.fromCharCode(65 + (i % 26))} openLabel={t.archive.openLink} />
-        ))}
-      </div>
+      <ArchiveFeed lang={lang} initial={items} total={total} batch={BATCH} t={t.archive} />
       {items.length === 0 && <p className="mt-6 text-lg">{t.archive.empty}</p>}
     </PageShell>
   );

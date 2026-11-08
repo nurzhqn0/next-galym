@@ -69,6 +69,11 @@ export async function listArchives(lang: Locale, limit: number, offset: number) 
   });
 }
 
+export async function countArchives() {
+  const [{ n }] = await db.select({ n: count() }).from(archives);
+  return n;
+}
+
 // Admin reads load each document with its translations in one query: one database round trip, not two.
 export async function listAdminArchives(limit: number, offset: number) {
   const [items, [{ n: total }]] = await Promise.all([

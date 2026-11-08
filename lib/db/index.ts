@@ -18,19 +18,6 @@ function createPool() {
   });
   // An idle client dropping must not crash the process.
   pool.on("error", (e) => console.error("pg pool error", { code: (e as { code?: string }).code }));
-  // TEMP timing: remove after measuring.
-  pool.on("connect", () => console.log("[db] opened a new connection"));
-  const query = pool.query.bind(pool) as (...a: unknown[]) => Promise<unknown>;
-  pool.query = (async (...args: unknown[]) => {
-    const t = performance.now();
-    try {
-      return await query(...args);
-    } finally {
-      const first = args[0] as string | { text: string };
-      const text = typeof first === "string" ? first : first.text;
-      console.log(`[db] ${Math.round(performance.now() - t)}ms  ${text.replace(/\s+/g, " ").slice(0, 70)}`);
-    }
-  }) as unknown as typeof pool.query;
   attachDatabasePool(pool);
   return pool;
 }

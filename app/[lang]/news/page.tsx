@@ -1,8 +1,10 @@
-import Link from "next/link";
+import { NewsFeed } from "@/components/news-feed";
 import { PageShell } from "@/components/page-shell";
-import { latestNews } from "@/lib/data";
-import { formatDate } from "@/lib/site";
+import { latestNews, newsCount } from "@/lib/data";
 import { getDictionary, getLocale } from "../dictionaries";
+
+// Ten at a time, like the archive page.
+const BATCH = 10;
 
 export async function generateMetadata() {
   return { title: (await getDictionary()).news.title };
@@ -11,25 +13,11 @@ export async function generateMetadata() {
 export default async function NewsPage() {
   const lang = await getLocale();
   const t = await getDictionary();
-  const items = await latestNews(lang, 50);
+  // The first ten come with the page; the feed loads the rest as the reader scrolls.
+  const [items, total] = await Promise.all([latestNews(lang, BATCH), newsCount()]);
   return (
     <PageShell title={t.news.title}>
-      {items.length ? (
-        <ul>
-          {items.map((n) => (
-            <li key={n.id} className="grid gap-1 border-t-[2.5px] border-ink py-5 md:grid-cols-[14rem_1fr] md:gap-8">
-              <time dateTime={new Date(n.publishedAt ?? 0).toISOString()} className="label text-ink">
-                {n.publishedAt ? formatDate(n.publishedAt, lang) : ""}
-              </time>
-              <Link href={`/${lang}/news/${n.slug}`} className="inline-block py-2 text-xl font-bold leading-snug hover:underline md:text-2xl">
-                {n.title}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-lg">{t.news.empty}</p>
-      )}
+      {items.length ? <NewsFeed lang={lang} initial={items} total={total} batch={BATCH} t={t.archive} /> : <p className="text-lg">{t.news.empty}</p>}
     </PageShell>
   );
 }

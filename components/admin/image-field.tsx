@@ -5,13 +5,14 @@ import { useState } from "react";
 import type { Dict } from "@/app/[lang]/dictionaries/en";
 import { IMAGE_TYPES, MAX_IMAGE_BYTES } from "@/lib/images";
 import { Field } from "./form-parts";
+import { toWebp } from "./to-webp";
 import { alertClass, errorText } from "./send";
 
 export type UploadedImage = { url: string; contentType: string; size: number };
 
 /**
  * An optional image that uploads on choose (POST /api/v1/admin/images), so the preview is the stored file;
- * the server checks the type from the bytes. `onUploading` lets the form hold Save until the upload ends.
+ * the browser shrinks it to WebP first (to-webp.ts) and the server checks the type from the bytes. `onUploading` lets the form hold Save until the upload ends.
  */
 export function ImageField({
   id,
@@ -40,11 +41,12 @@ export function ImageField({
 
   async function upload(file: File) {
     setError(null);
-    if (file.size > MAX_IMAGE_BYTES) return setError(t.image.error);
     busy(true);
     try {
+      const small = await toWebp(file);
+      if (small.size > MAX_IMAGE_BYTES) return setError(t.image.error);
       const body = new FormData();
-      body.append("file", file);
+      body.append("file", small);
       const res = await fetch("/api/v1/admin/images", { method: "POST", body });
       if (res.ok) onChange(await res.json());
       // 413 and 415 are the file's fault; anything else (signed out, storage down) is not.

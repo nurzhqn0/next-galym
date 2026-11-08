@@ -13,14 +13,23 @@ const url = process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL;
 if (!url) throw new Error("Set DATABASE_URL to a non-main Neon branch URL");
 
 const hostOf = (u: string) => new URL(u).hostname.replace("-pooler", "");
-const main = parse(readFileSync(".env.local"));
-for (const key of ["DATABASE_URL", "DATABASE_URL_UNPOOLED"]) {
-  if (main[key] && hostOf(main[key]) === hostOf(url)) {
-    throw new Error("Refusing to seed demo data into the main branch. Use a Neon branch URL.");
+// A database on this machine is never the main branch, so only remote URLs are checked.
+if (!["localhost", "127.0.0.1"].includes(hostOf(url))) {
+  const main = parse(readFileSync(".env.local"));
+  for (const key of ["DATABASE_URL", "DATABASE_URL_UNPOOLED"]) {
+    if (main[key] && hostOf(main[key]) === hostOf(url)) {
+      throw new Error("Refusing to seed demo data into the main branch. Use a Neon branch URL.");
+    }
   }
 }
 
 export const DEMO_PASSWORD = "demo-password-123";
+
+// Deterministic lorem ipsum: the same text on every run.
+const WORDS = "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua enim ad minim veniam quis nostrud exercitation ullamco laboris nisi aliquip ex ea commodo consequat".split(" ");
+const words = (count: number, seed: number) => Array.from({ length: count }, (_, k) => WORDS[(seed * 7 + k * 3) % WORDS.length]).join(" ");
+const sentence = (count: number, seed: number) => { const s = words(count, seed); return `${s[0].toUpperCase()}${s.slice(1)}.`; };
+const paragraph = (seed: number) => Array.from({ length: 3 + (seed % 3) }, (_, k) => sentence(8 + ((seed + k) % 7), seed + k)).join(" ");
 const pool = new Pool({ connectionString: url });
 const db = drizzle(pool, { schema: s });
 
@@ -96,11 +105,18 @@ async function main_() {
   }, 2);
   await mkNews("demo-only-english", "published", { en: { title: "[DEMO] A post that exists only in English", content: "Used to check the fallback to English in kk and ru." } }, 9);
   await mkNews("demo-draft", "draft", { en: { title: "[DEMO] Draft, must stay hidden", content: "Never shown publicly." } }, 0);
+  // 17 more, 20 in all: titles of different lengths, every sixth a draft.
+  for (let i = 1; i <= 17; i++) {
+    const content = Array.from({ length: 2 + (i % 3) }, (_, p) => paragraph(i * 5 + p)).join("\n\n");
+    await mkNews(`demo-lorem-${String(i).padStart(2, "0")}`, i % 6 ? "published" : "draft", { en: { title: `[DEMO] ${sentence(3 + (i % 7), i).slice(0, -1)}`, content } }, 10 + i * 3);
+  }
 
+  // 10 archive links; every third has no description.
   await db.delete(s.archives).where(like(s.archives.fileUrl, "https://example.com/demo-%"));
-  for (const [i, t] of ["[DEMO] Annual report", "[DEMO] Selection rules"].entries()) {
-    const [a] = await db.insert(s.archives).values({ fileUrl: `https://example.com/demo-${i}.pdf`, uploadedBy: admin.id }).returning();
-    await db.insert(s.archiveTranslations).values({ archiveId: a.id, locale: "en", title: t, description: i ? null : "A synthetic document used to check archive rows." });
+  const archiveTitles = ["[DEMO] Annual report", "[DEMO] Selection rules", ...Array.from({ length: 8 }, (_, i) => `[DEMO] ${sentence(2 + (i % 5), i + 40).slice(0, -1)}`)];
+  for (const [i, t] of archiveTitles.entries()) {
+    const [a] = await db.insert(s.archives).values({ fileUrl: `https://example.com/demo-${i}`, uploadedBy: admin.id }).returning();
+    await db.insert(s.archiveTranslations).values({ archiveId: a.id, locale: "en", title: t, description: i % 3 === 1 ? null : sentence(10 + i, i + 20) });
   }
   console.log(`Demo data ready. Logins: demo-admin@example.test / demo-root@example.test (superuser) / demo-student@example.test, password ${DEMO_PASSWORD}`);
 }

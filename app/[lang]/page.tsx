@@ -143,17 +143,17 @@ export default async function Home() {
                   <time dateTime={new Date(n.publishedAt ?? 0).toISOString()} className="label text-ink">
                     {n.publishedAt ? formatDate(n.publishedAt, lang) : ""}
                   </time>
-                  {/* The photo sits just right of the title, a small thumbnail rather than a banner. */}
-                  <div className="grid grid-cols-[1fr_6rem] items-start gap-4 md:grid-cols-[minmax(0,32rem)_10rem] md:gap-8">
-                    <Link href={`/${lang}/news/${n.slug}`} className="inline-block py-2 text-xl font-bold leading-snug hover:underline md:text-2xl">
-                      {n.title}
-                    </Link>
-                    {n.coverImageUrl && isShownImageUrl(n.coverImageUrl) && (
-                      <Link href={`/${lang}/news/${n.slug}`} tabIndex={-1} aria-hidden="true" className="relative block aspect-[4/3] border-[2.5px] border-ink bg-stock-lit">
-                        <Image src={n.coverImageUrl} alt="" fill sizes="(min-width: 768px) 10rem, 6rem" className="object-cover" />
-                      </Link>
-                    )}
-                  </div>
+                  {/* The photo sits right of the title, near the end of the row. */}
+<div className="grid grid-cols-[minmax(0,1fr)_9rem] items-start gap-4 md:grid-cols-[minmax(0,1fr)_11rem] md:gap-8">
+  <Link href={`/${lang}/news/${n.slug}`} className="inline-block py-2 text-xl font-bold leading-snug hover:underline md:text-2xl">
+    {n.title}
+  </Link>
+  {n.coverImageUrl && isShownImageUrl(n.coverImageUrl) && (
+    <Link href={`/${lang}/news/${n.slug}`} tabIndex={-1} aria-hidden="true" className="relative block aspect-video border-[2.5px] border-ink bg-stock-lit">
+      <Image src={n.coverImageUrl} alt="" fill sizes="(min-width: 768px) 16rem, 9rem" className="object-cover" />
+    </Link>
+  )}
+</div>
                 </li>
               ))}
             </ul>
