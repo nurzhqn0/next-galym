@@ -1,9 +1,11 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 import { AnswerRow } from "@/components/answer-row";
 import { ArchiveRow } from "@/components/archive-row";
 import { currentUser } from "@/lib/auth/guard";
 import { latestArchives, latestNews, openApplications } from "@/lib/data";
+import { isShownImageUrl } from "@/lib/images";
 import { formatDate } from "@/lib/site";
 import { getDictionary, getLocale } from "./dictionaries";
 
@@ -137,13 +139,21 @@ export default async function Home() {
           {news.length > 0 ? (
             <ul>
               {news.map((n) => (
-                <li key={n.id} className="grid gap-1 border-t-[2.5px] border-ink py-5 first:border-t-0 md:grid-cols-[14rem_1fr] md:gap-8">
+                <li
+                  key={n.id}
+                  className={`grid gap-3 border-t-[2.5px] border-ink py-8 first:border-t-0 first:pt-2 md:gap-8 md:py-10 ${n.coverImageUrl && isShownImageUrl(n.coverImageUrl) ? "md:grid-cols-[14rem_1fr_18rem]" : "md:grid-cols-[14rem_1fr]"}`}
+                >
                   <time dateTime={new Date(n.publishedAt ?? 0).toISOString()} className="label text-ink">
                     {n.publishedAt ? formatDate(n.publishedAt, lang) : ""}
                   </time>
                   <Link href={`/${lang}/news/${n.slug}`} className="inline-block py-2 text-xl font-bold leading-snug hover:underline md:text-2xl">
                     {n.title}
                   </Link>
+                  {n.coverImageUrl && isShownImageUrl(n.coverImageUrl) && (
+                    <Link href={`/${lang}/news/${n.slug}`} tabIndex={-1} aria-hidden="true" className="relative block aspect-video border-[2.5px] border-ink bg-stock-lit">
+                      <Image src={n.coverImageUrl} alt="" fill sizes="(min-width: 768px) 18rem, 100vw" className="object-cover" />
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
