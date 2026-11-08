@@ -56,14 +56,20 @@ const publicShape = (n: Awaited<ReturnType<typeof withTranslations<typeof news.$
 const isLive = () => and(eq(news.status, "published"), lte(news.publishedAt, new Date()));
 
 export async function listPublicNews(lang: Locale, limit: number, offset: number) {
-  const rows = await db.select().from(news).where(isLive()).orderBy(desc(news.publishedAt)).limit(limit).offset(offset);
-  return (await withTranslations(rows)).map((n) => publicShape(n, lang));
+  const rows = await db.query.news.findMany({
+    where: isLive(),
+    orderBy: desc(news.publishedAt),
+    limit,
+    offset,
+    with: { translations: true },
+  });
+  return rows.map((n) => publicShape(n, lang));
 }
 
 export async function getPublicNews(slugValue: string, lang: Locale) {
-  const [row] = await db.select().from(news).where(and(isLive(), eq(news.slug, slugValue)));
+  const row = await db.query.news.findFirst({ where: and(isLive(), eq(news.slug, slugValue)), with: { translations: true } });
   if (!row) throw new HttpError(404, "News not found");
-  return publicShape((await withTranslations([row]))[0], lang);
+  return publicShape(row, lang);
 }
 
 // Admin reads load each post with its translations in one query: one database round trip, not two.

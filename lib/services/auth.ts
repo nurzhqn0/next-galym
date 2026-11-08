@@ -103,8 +103,7 @@ export async function changePassword(userId: string, input: z.infer<typeof passw
 }
 
 export async function login(input: z.infer<typeof loginInput>, ip: string) {
-  await rateLimit(`login:ip:${ip}`, 30, 900);
-  await rateLimit(`login:email:${input.email}`, 10, 900);
+  await Promise.all([rateLimit(`login:ip:${ip}`, 30, 900), rateLimit(`login:email:${input.email}`, 10, 900)]);
   const [user] = await db.select().from(users).where(sql`lower(${users.email}) = ${input.email}`);
   const ok = await verify(user?.passwordHash ?? (await dummyHash), input.password);
   if (!user || !ok || !user.isActive) throw new HttpError(401, "Invalid email or password");
