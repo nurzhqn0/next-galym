@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMyAnswers } from "@/lib/stores/my-answers";
 import { useHydrated } from "./use-hydrated";
 
@@ -22,9 +22,15 @@ export function ApplyButton({ applicationId, applyUrl, lang, labels, name }: { a
   const router = useRouter();
   const hydrated = useHydrated();
   const [state, setState] = useState<"idle" | "sending" | "done" | "error" | "gone">("idle");
+  // Already answered (here or on another visit): show the bubble filled, as on "My answers".
+  const answered = useMyAnswers((s) => s.answers?.some((a) => a.applicationId === applicationId) ?? false);
+  const load = useMyAnswers((s) => s.load);
+  useEffect(() => {
+    if (!useMyAnswers.getState().answers) load();
+  }, [load]);
 
   async function apply() {
-    if (state === "sending" || state === "done" || state === "gone") return;
+    if (state === "sending" || state === "done" || state === "gone" || answered) return;
     setState("sending");
     try {
       const res = await fetch(`/api/v1/applications/${applicationId}/submissions`, { method: "POST" });
@@ -32,7 +38,8 @@ export function ApplyButton({ applicationId, applyUrl, lang, labels, name }: { a
         router.push(`/${lang}/login?next=${encodeURIComponent(`/${lang}/applications`)}`);
         return;
       }
-      if (res.status === 201) useMyAnswers.getState().clear();
+      // Refresh rather than clear, so the other bubbles on the page stay filled.
+      if (res.status === 201) useMyAnswers.getState().load();
       if (res.status === 201 || res.status === 409) return setState("done");
       setState(res.status === 410 ? "gone" : "error");
     } catch {
@@ -40,7 +47,7 @@ export function ApplyButton({ applicationId, applyUrl, lang, labels, name }: { a
     }
   }
 
-  const done = state === "done";
+  const done = state === "done" || answered;
   // With a link the student applies on the other site first, then marks it here; the mark is their own claim.
   const idle = applyUrl ? labels.iApplied : labels.apply;
   const text =

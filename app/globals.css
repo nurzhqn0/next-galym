@@ -196,10 +196,12 @@ a {
     border-width: 3px;
   }
 
-  .stamp[data-status="pending"] {
+  .stamp[data-status="pending"],
+  .stamp[data-status="marked"] {
     border-style: dashed;
   }
-  .stamp[data-status="accepted"] {
+  .stamp[data-status="accepted"],
+  .stamp[data-status="applied"] {
     background: var(--color-ink);
     color: var(--color-stock);
   }

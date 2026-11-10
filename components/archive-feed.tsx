@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { ArchiveRow, type ArchiveItem } from "@/components/archive-row";
+import { ArchiveCard, type ArchiveItem, type ArchiveLabels } from "@/components/archive-card";
 
-type Labels = { openLink: string; more: string; loading: string; retry: string };
+type Labels = ArchiveLabels & { more: string; loading: string; retry: string };
 
 /** The archive list: the first batch comes with the page, the next one loads as the reader nears the end. */
 export function ArchiveFeed({
@@ -60,19 +60,19 @@ export function ArchiveFeed({
 
   return (
     <>
-      <div className="grid gap-4">
+      <ul className="grid gap-5 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
         {items.map((a, i) => (
-          <div
+          <li
             key={a.id}
             style={i < initial.length ? undefined : { ["--i" as string]: Math.min(i % batch, 3) }}
             className={i < initial.length ? undefined : "print-in"}
           >
-            <ArchiveRow item={a} letter={String.fromCharCode(65 + (i % batch))} openLabel={t.openLink} />
-          </div>
+            <ArchiveCard item={a} lang={lang} t={t} />
+          </li>
         ))}
-      </div>
+      </ul>
       {status !== "end" && (
-        <div aria-live="polite" className="mt-6">
+        <div aria-live="polite" className="mt-8">
           <button ref={button} type="button" onClick={loadMore} aria-disabled={status === "loading"} className="field label">
             {status === "loading" ? t.loading : status === "failed" ? t.retry : t.more}
           </button>

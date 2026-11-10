@@ -52,7 +52,10 @@ export function MyAnswers({ lang, t, logoutLabel, errorText }: { lang: string; t
                   {s.external && <p className="mt-1 text-sm">{t.selfReported}</p>}
                 </div>
                 <p className="col-start-2 md:col-start-3">
-                  <span className="stamp" data-status={s.status}>{t.status[s.status]}</span>
+                  {/* Applicants see only whether it went through the site; the review status stays with the admins. */}
+                  <span className="stamp" data-status={s.external ? "marked" : "applied"}>
+                    {s.external ? t.marked : t.applied}
+                  </span>
                 </p>
               </li>
             );

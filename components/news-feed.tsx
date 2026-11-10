@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { NewsRow, type NewsItem } from "@/components/news-row";
+import { NewsCard, type NewsItem } from "@/components/news-card";
 
 type Labels = { more: string; loading: string; retry: string };
 
-/** The news list: the first batch comes with the page, the next one loads as the reader nears the end. */
+/** The news list as a card grid, newest post wide on top: the first batch comes with the page, the next one loads as the reader nears the end. */
 export function NewsFeed({
   lang,
   initial,
@@ -60,19 +60,24 @@ export function NewsFeed({
 
   return (
     <>
-      <ul>
+      <ul className="grid gap-5 sm:grid-cols-2 md:gap-6 lg:grid-cols-3">
         {items.map((n, i) => (
-          <NewsRow
+          <li
             key={n.id}
-            item={n}
-            lang={lang}
             style={i < initial.length ? undefined : { ["--i" as string]: Math.min(i % batch, 3) }}
-            className={i < initial.length ? "" : "print-in"}
-          />
+            className={`${i === 0 ? "sm:col-span-2 lg:col-span-3" : ""} ${i < initial.length ? "" : "print-in"}`}
+          >
+            <NewsCard
+              item={n}
+              lang={lang}
+              lead={i === 0}
+              sizes={i === 0 ? "(min-width: 1280px) 1240px, 100vw" : "(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw"}
+            />
+          </li>
         ))}
       </ul>
       {status !== "end" && (
-        <div aria-live="polite" className="mt-6">
+        <div aria-live="polite" className="mt-8">
           <button ref={button} type="button" onClick={loadMore} aria-disabled={status === "loading"} className="field label">
             {status === "loading" ? t.loading : status === "failed" ? t.retry : t.more}
           </button>

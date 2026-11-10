@@ -3,7 +3,7 @@ import { PageShell } from "@/components/page-shell";
 import { archiveCount, latestArchives } from "@/lib/data";
 import { getDictionary, getLocale } from "../dictionaries";
 
-// Ten at a time: the bubbles run A to J in every batch, like one block of an answer sheet.
+// Ten at a time, like the news page.
 const BATCH = 10;
 
 export async function generateMetadata() {
