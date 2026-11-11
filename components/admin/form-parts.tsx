@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Dict } from "@/app/[lang]/dictionaries/en";
 import { useHydrated } from "../use-hydrated";
+import { useAdminLists } from "@/lib/stores/admin-lists";
 import { alertClass, errorText, send } from "./send";
 
 /** Sends a form payload; on success goes to `done`, otherwise keeps the message and the invalid fields. */
@@ -19,6 +20,7 @@ export function useSave(t: Dict["admin"], done: string) {
     setFields([]);
     const res = await send(method, url, payload);
     if (res.ok) {
+      useAdminLists.getState().clear();
       router.push(done);
       router.refresh();
       return;

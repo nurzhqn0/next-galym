@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { AdminNav } from "@/components/admin/admin-nav";
-import { PAGE_SIZE, Pager, pageOf } from "@/components/admin/pager";
+import { AdminList } from "@/components/admin/admin-list";
+import { PAGE_SIZE, pageOf } from "@/components/admin/pager";
 import { PageShell } from "@/components/page-shell";
 import { adminPage } from "@/lib/auth/guard";
 import { adminNewsList } from "@/lib/data";
-import { pickTranslation } from "@/lib/locale";
-import { formatDate } from "@/lib/site";
 import { getDictionary, getLocale } from "../../dictionaries";
 
 // Coming back to this list within 30 s reuses the browser's copy. Save and delete land here and refresh it.
@@ -17,49 +16,19 @@ export async function generateMetadata() {
   return { title: (await getDictionary()).admin.tabs.news };
 }
 
-// Reuses the stamp looks: a draft is dashed, a published post is solid.
-const stamp = { draft: "pending", published: "accepted", archived: undefined } as const;
-
 async function List({ searchParams }: { searchParams: PageProps<"/[lang]/admin/news">["searchParams"] }) {
   const lang = await getLocale();
   const t = await getDictionary();
   const user = await adminPage(lang, `/${lang}/admin/news`);
   const page = pageOf((await searchParams).page);
-  const { items, total } = await adminNewsList(PAGE_SIZE, (page - 1) * PAGE_SIZE);
+  const list = await adminNewsList(PAGE_SIZE, (page - 1) * PAGE_SIZE);
   return (
     <>
       <AdminNav lang={lang} t={t.admin} current="news" superuser={user.role === "superuser"} />
       <Link href={`/${lang}/admin/news/new`} className="field field-solid label">
         {t.admin.news.new}
       </Link>
-      {items.length ? (
-        <ul className="mt-8 border-b-[2.5px] border-ink">
-          {items.map((n, i) => (
-            <li key={n.id} style={{ ["--i" as string]: Math.min(i, 3) }} className="print-in border-t-[2.5px] border-ink">
-              <Link
-                href={`/${lang}/admin/news/${n.id}`}
-                className="grid gap-2 px-2 py-5 hover:bg-stock-lit md:grid-cols-[10rem_1fr_auto] md:items-center md:gap-6"
-              >
-                <span>
-                  <span className="stamp" data-status={stamp[n.status]}>
-                    {t.admin.news.statuses[n.status]}
-                  </span>
-                </span>
-                <span className="min-w-0">
-                  <span className="block break-words text-xl font-bold">{pickTranslation(n.translations, lang)?.title ?? n.slug}</span>
-                  <span className="label block break-all text-ink">/news/{n.slug}</span>
-                </span>
-                <span className="label text-ink">
-                  {t.admin.updated} {formatDate(n.updatedAt, lang)}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-8 text-lg">{t.admin.news.empty}</p>
-      )}
-      <Pager base={`/${lang}/admin/news`} page={page} total={total} newer={t.admin.newer} older={t.admin.older} />
+      <AdminList lang={lang} kind="news" page={page} t={t.admin} initial={list} />
     </>
   );
 }

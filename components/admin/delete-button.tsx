@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Dict } from "@/app/[lang]/dictionaries/en";
+import { useAdminLists } from "@/lib/stores/admin-lists";
 import { alertClass, errorText, send } from "./send";
 
 /** Two steps: Delete, then "Yes, delete" or Cancel. On success, back to the list. */
@@ -16,6 +17,7 @@ export function DeleteButton({ url, back, t }: { url: string; back: string; t: D
     setError(null);
     const res = await send("DELETE", url);
     if (res.ok) {
+      useAdminLists.getState().clear();
       router.push(back);
       router.refresh();
       return;

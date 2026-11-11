@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useAdminLists } from "@/lib/stores/admin-lists";
 import { useAdmins } from "@/lib/stores/admins";
 import { useMyAnswers } from "@/lib/stores/my-answers";
 
@@ -14,6 +15,7 @@ export function LogoutButton({ lang, label }: { lang: string; label: string }) {
         await fetch("/api/v1/auth/logout", { method: "POST" });
         useMyAnswers.getState().clear();
         useAdmins.getState().clear();
+        useAdminLists.getState().clear();
         router.push(`/${lang}`);
         router.refresh();
       }}
