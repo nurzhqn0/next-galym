@@ -196,8 +196,7 @@ a {
     border-width: 3px;
   }
 
-  .stamp[data-status="pending"],
-  .stamp[data-status="marked"] {
+  .stamp[data-status="pending"] {
     border-style: dashed;
   }
   .stamp[data-status="accepted"],

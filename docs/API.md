@@ -30,6 +30,7 @@ Paginated lists take `limit` (1-100, default 20) and `offset`. Admin lists retur
 | GET | `/auth/me` | Current user. |
 | POST | `/auth/password` | `{ currentPassword, newPassword (10+) }`. Signs out every other session. |
 | POST | `/applications/:id/submissions` | Apply. 201; 409 already applied; 410 closed. `external: true` when the listing has `applyUrl`: the student's own claim, never confirmed. |
+| DELETE | `/applications/:id/submissions` | Take the answer back. 204; 404 not applied. |
 | GET | `/me/submissions` | Own submissions: `{ id, applicationId, formTitle, status, external, data, listingRemoved, createdAt }`. |
 
 ## Admin

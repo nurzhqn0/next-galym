@@ -14,7 +14,7 @@ export function NewsCard({ item: n, lang, sizes, lead = false }: { item: NewsIte
   return (
     <Link
       href={`/${lang}/news/${n.slug}`}
-      className={`group relative block aspect-[4/5] overflow-hidden border-[2.5px] border-ink bg-ink ${lead ? "sm:aspect-[3/2] lg:aspect-[2/1]" : ""}`}
+      className={`group relative block aspect-[4/5] overflow-hidden rounded-2xl border-[2.5px] border-ink bg-ink ${lead ? "sm:aspect-[3/2] lg:aspect-[2/1]" : ""}`}
     >
       {photo && (
         <Image

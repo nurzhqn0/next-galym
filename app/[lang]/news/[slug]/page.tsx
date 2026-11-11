@@ -43,7 +43,7 @@ async function Article({ params }: { params: PageProps<"/[lang]/news/[slug]">["p
         </header>
         {/* A cover saved before uploads existed may live elsewhere; next/image only loads from the Blob store. */}
         {n.coverImageUrl && isBlobUrl(n.coverImageUrl) && (
-          <div className="relative mt-10 aspect-[16/9] border-[2.5px] border-ink bg-stock-lit">
+          <div className="relative mt-10 aspect-[16/9] overflow-hidden rounded-2xl border-[2.5px] border-ink bg-stock-lit">
             <Image src={n.coverImageUrl} alt="" fill preload sizes="(min-width: 64rem) 60rem, 100vw" className="object-cover" />
           </div>
         )}
