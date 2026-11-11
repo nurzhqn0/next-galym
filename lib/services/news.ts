@@ -66,6 +66,11 @@ export async function listPublicNews(lang: Locale, limit: number, offset: number
   return rows.map((n) => publicShape(n, lang));
 }
 
+export async function countPublicNews() {
+  const [{ n }] = await db.select({ n: count() }).from(news).where(isLive());
+  return n;
+}
+
 export async function getPublicNews(slugValue: string, lang: Locale) {
   const row = await db.query.news.findFirst({ where: and(isLive(), eq(news.slug, slugValue)), with: { translations: true } });
   if (!row) throw new HttpError(404, "News not found");

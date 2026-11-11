@@ -80,6 +80,15 @@ export async function applyTo(userId: string, applicationId: string) {
   }
 }
 
+/** Takes the answer back. Works on a closed listing too: the answer is the user's to remove. */
+export async function withdrawFrom(userId: string, applicationId: string) {
+  const res = await db
+    .delete(applicationSubmissions)
+    .where(and(eq(applicationSubmissions.userId, userId), eq(applicationSubmissions.applicationId, applicationId)))
+    .returning({ id: applicationSubmissions.id });
+  if (!res.length) throw new HttpError(404, "You have not applied");
+}
+
 /** jsonb returns keys sorted by length, not in sheet order; put them back in column order. */
 function inColumnOrder(data: Record<string, string>, schema: Columns) {
   const known = schema.columns.filter((c) => c.header in data).map((c) => c.header);

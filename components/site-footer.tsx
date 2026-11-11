@@ -1,9 +1,23 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { currentUser } from "@/lib/auth/guard";
 import type { Locale } from "@/lib/locale";
 import type { Dict } from "@/app/[lang]/dictionaries/en";
 import { INSTAGRAM_URL } from "@/lib/site";
 import { LangSwitch } from "./lang-switch";
 import { Logo } from "./logo";
+
+const linkClass = "label inline-flex min-h-11 items-center underline-offset-4 hover:underline";
+
+/** Log In only for visitors who are signed out. Reads the cookie, so it sits in Suspense. */
+async function LoginLink({ lang, label }: { lang: Locale; label: string }) {
+  if (await currentUser()) return null;
+  return (
+    <Link href={`/${lang}/login`} className={linkClass}>
+      {label}
+    </Link>
+  );
+}
 
 export function SiteFooter({ lang, t }: { lang: Locale; t: Dict }) {
   const links = [
@@ -12,7 +26,6 @@ export function SiteFooter({ lang, t }: { lang: Locale; t: Dict }) {
     { href: `/${lang}#news`, label: t.nav.news },
     { href: `/${lang}/applications`, label: t.nav.applications },
     { href: `/${lang}/archives`, label: t.nav.archives },
-    { href: `/${lang}/login`, label: t.nav.login },
   ];
   return (
     <footer className="on-ink bg-ink text-stock pl-[calc(var(--track)+1rem)] pr-4 py-14 md:pl-[calc(var(--track)+2rem)] md:pr-8">
@@ -23,15 +36,18 @@ export function SiteFooter({ lang, t }: { lang: Locale; t: Dict }) {
         </div>
         <nav aria-label="Footer" className="grid grid-cols-2 gap-x-6 gap-y-1">
           {links.map((l) => (
-            <Link key={l.href} href={l.href} className="label inline-flex min-h-11 items-center underline-offset-4 hover:underline">
+            <Link key={l.href} href={l.href} className={linkClass}>
               {l.label}
             </Link>
           ))}
+          <Suspense>
+            <LoginLink lang={lang} label={t.nav.login} />
+          </Suspense>
           <a
             href={INSTAGRAM_URL}
             rel="noopener noreferrer"
             target="_blank"
-            className="label inline-flex min-h-11 items-center underline-offset-4 hover:underline"
+            className={linkClass}
           >
             {t.footer.instagram}
           </a>

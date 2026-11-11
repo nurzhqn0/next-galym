@@ -1,7 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { defaultLocale, locales } from "@/lib/locale";
+import { LOCALE_COOKIE, defaultLocale, locales } from "@/lib/locale";
 
 function preferredLocale(req: NextRequest) {
+  // The language picked with the switch wins over the browser's setting.
+  const picked = locales.find((l) => l === req.cookies.get(LOCALE_COOKIE)?.value);
+  if (picked) return picked;
   const header = req.headers.get("accept-language") ?? "";
   for (const part of header.split(",")) {
     const tag = part.split(";")[0].trim().toLowerCase().slice(0, 2);

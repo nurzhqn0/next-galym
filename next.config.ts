@@ -7,8 +7,12 @@ const nextConfig: NextConfig = {
   },
   poweredByHeader: false,
   images: {
+    // Uploads get a new random name and never change, so resized copies can be kept for 31 days.
+    minimumCacheTTL: 2678400,
     // News covers uploaded to Vercel Blob (lib/services/images.ts).
-    remotePatterns: [{ protocol: "https", hostname: "*.public.blob.vercel-storage.com" }],
+    remotePatterns: [
+      { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
+    ],
   },
   async headers() {
     return [

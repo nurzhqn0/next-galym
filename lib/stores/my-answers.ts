@@ -18,6 +18,8 @@ const empty = { user: null, answers: null, failed: false };
 
 // Bumped by clear(), so a load that started before a logout cannot write the old account back.
 let generation = 0;
+// Every apply button on a page asks at once; they share one request.
+let inflight: Promise<"ok" | "signed-out" | "error"> | null = null;
 
 /**
  * "My answers" kept in this tab's memory: a revisit shows them at once while load() re-checks the server.
@@ -25,26 +27,29 @@ let generation = 0;
  */
 export const useMyAnswers = create<State>()((set) => ({
   ...empty,
-  load: async () => {
-    const started = generation;
-    try {
-      const [me, subs] = await Promise.all([fetch("/api/v1/auth/me"), fetch("/api/v1/me/submissions")]);
-      if (started !== generation) return "ok";
-      if (me.status === 401 || subs.status === 401) {
-        set(empty);
-        return "signed-out";
-      }
-      if (!me.ok || !subs.ok) throw new Error(`HTTP ${me.status}/${subs.status}`);
-      const [user, answers] = await Promise.all([me.json(), subs.json()]);
-      if (started === generation) set({ user, answers, failed: false });
-      return "ok";
-    } catch {
-      if (started === generation) set({ failed: true });
-      return "error";
-    }
-  },
+  load: () => (inflight ??= loadOnce().finally(() => (inflight = null))),
   clear: () => {
     generation++;
     set(empty);
   },
 }));
+
+async function loadOnce(): Promise<"ok" | "signed-out" | "error"> {
+  const set = useMyAnswers.setState;
+  const started = generation;
+  try {
+    const [me, subs] = await Promise.all([fetch("/api/v1/auth/me"), fetch("/api/v1/me/submissions")]);
+    if (started !== generation) return "ok";
+    if (me.status === 401 || subs.status === 401) {
+      set(empty);
+      return "signed-out";
+    }
+    if (!me.ok || !subs.ok) throw new Error(`HTTP ${me.status}/${subs.status}`);
+    const [user, answers] = await Promise.all([me.json(), subs.json()]);
+    if (started === generation) set({ user, answers, failed: false });
+    return "ok";
+  } catch {
+    if (started === generation) set({ failed: true });
+    return "error";
+  }
+}

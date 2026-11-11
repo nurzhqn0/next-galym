@@ -17,10 +17,7 @@ function createPool() {
     statement_timeout: 20_000,
   });
   // An idle client dropping must not crash the process.
-  pool.on("error", (e) =>
-    console.error("pg pool error", { code: (e as { code?: string }).code }),
-  );
-
+  pool.on("error", (e) => console.error("pg pool error", { code: (e as { code?: string }).code }));
   attachDatabasePool(pool);
   return pool;
 }

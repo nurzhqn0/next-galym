@@ -1,9 +1,9 @@
 import { cacheLife, cacheTag } from "next/cache";
 import { HttpError } from "@/lib/http";
 import type { Locale } from "@/lib/locale";
-import { getAdminArchive, listAdminArchives, listArchives } from "@/lib/services/archives";
+import { countArchives, getAdminArchive, listAdminArchives, listArchives } from "@/lib/services/archives";
 import { listListings } from "@/lib/services/applications";
-import { getAdminNews, listAdminNews, listPublicNews } from "@/lib/services/news";
+import { countPublicNews, getAdminNews, listAdminNews, listPublicNews } from "@/lib/services/news";
 
 // Cached reads for pages. Admin mutations call revalidateTag with the same tags.
 
@@ -21,11 +21,25 @@ export async function latestNews(lang: Locale, limit: number, offset = 0) {
   return listPublicNews(lang, limit, offset);
 }
 
+export async function newsCount() {
+  "use cache";
+  cacheTag("news");
+  cacheLife("minutes");
+  return countPublicNews();
+}
+
 export async function latestArchives(lang: Locale, limit: number, offset = 0) {
   "use cache";
   cacheTag("archives");
   cacheLife("minutes");
   return listArchives(lang, limit, offset);
+}
+
+export async function archiveCount() {
+  "use cache";
+  cacheTag("archives");
+  cacheLife("minutes");
+  return countArchives();
 }
 
 // Admin reads share the public tags, so a save clears them as well. The news and archive routes

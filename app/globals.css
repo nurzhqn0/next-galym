@@ -199,7 +199,8 @@ a {
   .stamp[data-status="pending"] {
     border-style: dashed;
   }
-  .stamp[data-status="accepted"] {
+  .stamp[data-status="accepted"],
+  .stamp[data-status="applied"] {
     background: var(--color-ink);
     color: var(--color-stock);
   }

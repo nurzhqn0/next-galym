@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { PAGE_SIZE } from "@/lib/stores/admin-lists";
 
-export const PAGE_SIZE = 50;
+export { PAGE_SIZE };
 
 /** `?page=` as a positive integer; anything else is the first page. */
 export const pageOf = (v: string | string[] | undefined) => Math.max(1, Math.floor(Number(v)) || 1);

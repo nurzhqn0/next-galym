@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense } from "react";
-import { locales, type Locale } from "@/lib/locale";
+import { LOCALE_COOKIE, locales, type Locale } from "@/lib/locale";
 
 const names: Record<Locale, string> = { en: "English", kk: "Қазақша", ru: "Русский" };
 
@@ -18,6 +18,8 @@ function Links({ lang, label, rest }: { lang: Locale; label: string; rest: strin
           lang={l}
           aria-label={names[l]}
           aria-current={l === lang ? "true" : undefined}
+          // Remembered for a year: proxy.ts sends the next visit to "/" straight to this language.
+          onClick={() => (document.cookie = `${LOCALE_COOKIE}=${l}; path=/; max-age=31536000; samesite=lax`)}
           className="choose"
         >
           <span className="bubble" data-filled={l === lang}>

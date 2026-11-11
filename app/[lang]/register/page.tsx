@@ -1,5 +1,4 @@
-import { Suspense } from "react";
-import { AuthForm } from "@/components/auth-form";
+import { AuthGate } from "@/components/auth-gate";
 import { PageShell } from "@/components/page-shell";
 import { getDictionary, getLocale } from "../dictionaries";
 
@@ -12,9 +11,7 @@ export default async function Page() {
   const t = await getDictionary();
   return (
     <PageShell title={t.auth.registerTitle} narrow>
-      <Suspense>
-        <AuthForm mode="register" lang={lang} t={t} />
-      </Suspense>
+      <AuthGate mode="register" lang={lang} t={t} />
     </PageShell>
   );
 }

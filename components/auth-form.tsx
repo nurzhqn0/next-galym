@@ -20,6 +20,8 @@ export function AuthForm({ mode, lang, t }: { mode: "login" | "register"; lang: 
   const [busy, setBusy] = useState(false);
   const hydrated = useHydrated();
   const register = mode === "register";
+  // Switching between log in and register keeps where the visitor was headed.
+  const next = safeNext(params.get("next"), "");
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -93,7 +95,7 @@ export function AuthForm({ mode, lang, t }: { mode: "login" | "register"; lang: 
       </button>
       <p>
         {register ? t.auth.haveAccount : t.auth.noAccount}{" "}
-        <Link href={`/${lang}/${register ? "login" : "register"}`} className="inline-block py-2 font-bold underline">
+        <Link href={`/${lang}/${register ? "login" : "register"}${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="inline-block py-2 font-bold underline">
           {register ? t.auth.loginTitle : t.auth.registerTitle}
         </Link>
       </p>
