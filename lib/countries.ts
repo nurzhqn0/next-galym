@@ -37,6 +37,7 @@ const ALIASES: Record<string, string> = {
   usa: "US", us: "US", "united states of america": "US", uk: "GB", "great britain": "GB", uae: "AE",
   "south korea": "KR", "north korea": "KP", russia: "RU", "czech republic": "CZ", turkey: "TR", türkiye: "TR",
   iran: "IR", vietnam: "VN", taiwan: "TW", "hong kong": "HK",
+  "сша": "US", "оаэ": "AE", "великобритания": "GB",
 };
 
 // Words that say "no particular country"; they are not unknown.

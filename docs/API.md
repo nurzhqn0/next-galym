@@ -17,7 +17,7 @@ Paginated lists take `limit` (1-100, default 20) and `offset`. Admin lists retur
 | GET | `/news?lang=en\|kk\|ru` | Published news. Falls back to English. |
 | GET | `/news/:slug?lang=` | One published item. |
 | GET | `/archives?lang=` | Archive links (`fileUrl`) with title, description and optional `imageUrl`. |
-| GET | `/applications` | Live listings: `{ id, title, category, applyUrl, deadline, fields: [{ label, type, value }] }`. `fields` holds only public fields. Live = open and not past its deadline (Asia/Almaty). |
+| GET | `/applications` | Live listings: `{ id, title, category, applyUrl, deadline, countries, fields: [{ label, type, value }] }`. `countries` is an array of uppercase ISO alpha-2 codes (empty = online / any). `fields` holds only public fields. Query `?country=XX` keeps listings for that country; `?country=none` keeps listings without a country; any other value answers 400. Live = open and not past its deadline (Asia/Almaty). |
 | GET | `/applications/:id` | One live listing. 404 if closed or past its deadline. |
 
 ## Accounts
@@ -53,13 +53,13 @@ All routes need an admin session.
 - `PATCH /:id` any subset; `kk: null` or `ru: null` removes that translation, as for news. `DELETE /:id`.
 
 ### Applications: `/admin/applications`
-- `GET ?limit&offset` list: `{ id, title, category, deadline, status, live, submissions, updatedAt }`. `GET /:id` full record with every field, private ones included.
-- `POST` `{ title, category?, applyUrl? (http/https), deadline? (yyyy-mm-dd), status?: open|closed, fields?: [{ label, type, value, public }] }`. `type` is `text | longtext | url | date | number | email`; the value must fit the type, labels are unique (case-insensitive), up to 50 fields.
+- `GET ?limit&offset` list: `{ id, title, category, deadline, status, countries, live, submissions, updatedAt }`. `GET /:id` full record with every field, private ones included.
+- `POST` `{ title, category?, applyUrl? (http/https), deadline? (yyyy-mm-dd), status?: open|closed, countries?: ["CH", ...] (alpha-2, uppercased and deduped), fields?: [{ label, type, value, public }] }`. `type` is `text | longtext | url | date | number | email`; the value must fit the type, labels are unique (case-insensitive), up to 50 fields.
 - `PATCH /:id` any subset (`fields` replaces the whole list). `DELETE /:id` 409 if students have applied: close it instead.
 - `POST /import` `{ items: [...same as POST...] }` up to 500, all or nothing. `201 { created }`. The admin page parses CSV and Markdown in the browser and shows a preview first; this route only receives the confirmed items.
-- `GET /export` CSV download (`Title, Category, Deadline, Link, Status`, then one column per field; a private field's column is named `<label> (private)`). Import accepts the same file.
+- `GET /export` CSV download (`Title, Category, Deadline, Link, Status, Country` (alpha-2 codes joined by `; `), then one column per field; a private field's column is named `<label> (private)`). Import accepts the same file.
 - A closed or past-deadline listing disappears from the site and answers 410 to apply; existing submissions keep showing.
-- Import files: CSV (`,` or `;`, first row is the header) or Markdown (one `## Title` per application, `- Key: value` lines, other text becomes `Description`). Title, Category, Deadline (`dd.mm.yyyy` or `yyyy-mm-dd`), Link and Status (also in Russian) are special; any other key becomes a field with its type guessed from the value.
+- Import files: CSV (`,` or `;`, first row is the header) or Markdown (one `## Title` per application, `- Key: value` lines, other text becomes `Description`). Title, Category, Deadline (`dd.mm.yyyy` or `yyyy-mm-dd`), Link, Status (also in Russian) and Country (names in English or Russian separated by `;` `,` `&` `/`, " and " or " и "; alpha-2 codes separated by `;` or `,`; a `Location` column is used when there is no Country) are special; any other key becomes a field with its type guessed from the value.
 
 ### Submissions: `/admin/submissions`
 - `GET ?limit&offset&status=&applicationId=&q=` (`q` matches name or email). Items: `{ id, status, external, data: { title, category, fields }, createdAt, applicationId, user }`.

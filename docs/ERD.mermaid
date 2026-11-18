@@ -72,6 +72,7 @@ erDiagram
         text apply_url "External apply link"
         date deadline "Hidden after this day (Asia/Almaty)"
         enum status "open | closed"
+        varchar[] countries "ISO alpha-2 codes, empty = online / any"
         jsonb fields "Ordered [{label, type, value, public}]"
         uuid created_by FK
         timestamp created_at

@@ -58,6 +58,11 @@ describe("drafts", () => {
     expect(d.item!.unknownCountries).toEqual(["Narnia"]);
   });
 
+  it("accepts codes and names mixed in one cell", () => {
+    expect(draft('Title,Country\nA,"CH; Japan"')[0].item!.countries).toEqual(["CH", "JP"]);
+    expect(draft("Title,Country\nA,ch")[0].item!.countries).toEqual(["CH"]);
+  });
+
   it("derives countries from Location and keeps it as a field", () => {
     const it = draft("Title,Location\nA,Switzerland")[0].item!;
     expect(it.countries).toEqual(["CH"]);

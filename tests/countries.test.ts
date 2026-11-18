@@ -31,3 +31,11 @@ describe("parseCountries", () => {
     expect(parseCountries("Côte d'Ivoire")).toEqual({ codes: ["CI"], unknown: [] });
   });
 });
+
+describe("Russian aliases", () => {
+  it("maps common short names", () => {
+    expect(parseCountries("США").codes).toEqual(["US"]);
+    expect(parseCountries("ОАЭ").codes).toEqual(["AE"]);
+    expect(parseCountries("Великобритания").codes).toEqual(["GB"]);
+  });
+});

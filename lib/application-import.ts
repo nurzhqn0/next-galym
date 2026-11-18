@@ -116,9 +116,17 @@ const NO_DEADLINE = ["", "no deadline", "none", "-", "нет", "без дедл�
 
 /** Like parseCountries, but a bare uppercase alpha-2 code (what the export writes) is accepted too. */
 function countriesOf(text: string) {
-  const parts = text.split(/[;,]/).map((p) => p.trim());
-  if (parts.every(isCountryCode)) return { codes: [...new Set(parts)], unknown: [] };
-  return parseCountries(text);
+  const whole = parseCountries(text);
+  if (!whole.unknown.length) return whole;
+  const codes: string[] = [];
+  const unknown: string[] = [];
+  for (const part of text.split(/[;,]/).map((p) => p.trim())) {
+    const upper = part.toUpperCase();
+    const r = isCountryCode(upper) ? { codes: [upper], unknown: [] } : parseCountries(part);
+    for (const c of r.codes) if (!codes.includes(c)) codes.push(c);
+    for (const u of r.unknown) if (!unknown.includes(u)) unknown.push(u);
+  }
+  return { codes, unknown };
 }
 
 /** Turns parsed rows into applications; a row without a title is an error and has no item. */

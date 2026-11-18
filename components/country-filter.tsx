@@ -21,8 +21,8 @@ export async function CountryFilter({ t, lang, active }: { t: Dict; lang: Locale
     <nav aria-label={t.open.mapLabel} className="mb-6">
       <ul className="flex flex-wrap gap-2">
         {link(`/${lang}/applications`, !active, t.open.all)}
-        {countries.map(({ code, count }) => link(`?country=${code}`, active === code, countryName(code, lang), count))}
-        {none > 0 && link("?country=none", active === "none", t.open.online, none)}
+        {countries.map(({ code, count }) => link(`/${lang}/applications?country=${code}`, active === code, countryName(code, lang), count))}
+        {none > 0 && link(`/${lang}/applications?country=none`, active === "none", t.open.online, none)}
       </ul>
     </nav>
   );

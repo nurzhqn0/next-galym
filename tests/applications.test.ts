@@ -111,14 +111,14 @@ describe("applications", () => {
     const closed = await makeApplication(admin, { countries: ["CH"], status: "closed" });
     const past = await makeApplication(admin, { countries: ["CH"], deadline: inDays(-1) });
     const closedNone = await makeApplication(admin, { status: "closed" });
-    const chIds = (await listListings(100, 0, "CH")).map((l) => l.id);
+    const chIds = (await listListings(1000, 0, "CH")).map((l) => l.id);
     expect(chIds).toContain(ch.id);
     expect(chIds).not.toContain(both.id);
     expect(chIds).not.toContain(closed.id);
     expect(chIds).not.toContain(past.id);
-    expect((await listListings(100, 0, "XX")).map((l) => l.id)).toContain(online.id);
+    expect((await listListings(1000, 0, "XX")).map((l) => l.id)).toContain(online.id);
     expect(both.countries).toEqual(["SG", "JP"]);
-    const noneIds = (await listListings(100, 0, "none")).map((l) => l.id);
+    const noneIds = (await listListings(1000, 0, "none")).map((l) => l.id);
     expect(noneIds).toContain(online.id);
     expect(noneIds).not.toContain(ch.id);
     expect(noneIds).not.toContain(closedNone.id);
