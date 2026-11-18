@@ -17,12 +17,12 @@ export async function send(method: "POST" | "PATCH" | "DELETE", url: string, bod
   }
 }
 
-export function errorText(status: number, e: Dict["admin"]["errors"]) {
+export function errorText(status: number, e: Dict["admin"]["errors"], conflict?: string) {
   if (status === 400) return e.input;
   if (status === 401) return e.signedOut;
   if (status === 403) return e.forbidden;
   // The only conflict these forms can hit is a news slug already in use.
-  if (status === 409) return e.slugTaken;
+  if (status === 409) return conflict ?? e.slugTaken;
   return e.generic;
 }
 

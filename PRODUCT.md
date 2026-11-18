@@ -16,10 +16,10 @@ Next Galym is a program people apply to. The site presents the program, publishe
 Own words, from the public Instagram bio (@nextgalym, read 2026-11-04): "A bridge for future galyms." The kind of program (grant, fellowship, olympiad, scholarship) is still unconfirmed, though the account has highlights named "Activities" and "Scholarships". Do not state a program type or any claim beyond the bio.
 
 ## Operating Context
-- Open applications are rows in a Google Sheet that admins edit. The site mirrors them, shows only columns marked public, and lets a signed-in user apply with one click.
+- Open applications are added by admins in the admin area, one by one or imported from a CSV or Markdown file after a preview. Each has a title, category, deadline, optional apply link and any number of typed fields; only fields marked public are shown, and a signed-in user applies with one click.
 - Admins publish news and archive documents and review submissions.
 - Three languages: English (default), Kazakh, Russian.
-- Some listings are external opportunities: the Sheet row may carry a link; the student opens it, then marks "I applied" so it stays tracked on their account (self-reported, never shown as confirmed). Rows without a link use on-site Apply.
+- Some listings are external opportunities: the application may carry an apply link; the student opens it, then marks "I applied" so it stays tracked on their account (self-reported, never shown as confirmed). Applications without a link use on-site Apply.
 
 ## Capabilities and Constraints
 - Next.js 16 app with a Neon Postgres backend and /api/v1 endpoints (already built).

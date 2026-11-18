@@ -1,107 +1,103 @@
-import { eq } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
-import { db } from "@/lib/db";
-import { applications } from "@/lib/db/schema";
-import { applyTo, getListing, listListings, listMySubmissions, updateForm } from "@/lib/services/applications";
-import { syncForm, type Cell } from "@/lib/services/sheets";
-import { cleanup, grid, makeForm, makeUser } from "./helpers";
+import { todayAlmaty } from "@/lib/application-fields";
+import {
+  applicationCreate,
+  applicationImport,
+  applyTo,
+  deleteApplication,
+  getListing,
+  importApplications,
+  listListings,
+  listMySubmissions,
+  updateApplication,
+} from "@/lib/services/applications";
+import { cleanup, makeApplication, makeUser, PREFIX } from "./helpers";
 
 afterAll(cleanup);
-const H = ["id", "title", "notes"];
-const fixture = (rows: Cell[][]) => async () => rows;
+
+const inDays = (days: number) => {
+  const [y, m, d] = todayAlmaty().split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+};
+
+const fields = [
+  { label: "Level", type: "text" as const, value: "PhD", public: true },
+  { label: "Phone", type: "text" as const, value: "secret-555", public: false },
+];
 
 async function setup() {
   const admin = await makeUser("admin");
-  const form = await makeForm(admin);
-  await syncForm(form.id, fixture(grid(H, [["a", "Grant A", "secret-a"], ["b", "Grant B", "secret-b"]])));
-  await updateForm(form.id, { publicColumns: ["id", "title"] });
-  const rows = await db.select().from(applications).where(eq(applications.formId, form.id));
-  const idOf = (key: string) => rows.find((r) => r.externalKey === key)!.id;
-  return { admin, form, idOf };
+  const app = await makeApplication(admin, { title: `${PREFIX} Grant ${Math.random()}`, category: "Grants", fields });
+  return { admin, app };
 }
 
 describe("applications", () => {
-  it("never exposes private columns, in listings, detail or snapshots", async () => {
-    const { form, idOf } = await setup();
+  it("never exposes private fields, in listings, detail or snapshots", async () => {
+    const { app } = await setup();
     const user = await makeUser();
-    const list = await listListings(100, 0, form.id);
-    expect(list).toHaveLength(2);
-    expect(JSON.stringify(list)).not.toContain("secret");
-    expect(JSON.stringify(await getListing(idOf("a")))).not.toContain("secret");
-    await applyTo(user.id, idOf("a"));
+    expect(JSON.stringify(await listListings(100, 0))).not.toContain("secret");
+    expect(JSON.stringify(await getListing(app.id))).not.toContain("secret");
+    await applyTo(user.id, app.id);
     expect(JSON.stringify(await listMySubmissions(user.id))).not.toContain("secret");
   });
 
-  it("new sheet columns default to private", async () => {
-    const { form, idOf } = await setup();
-    await syncForm(form.id, fixture(grid([...H, "phone"], [["a", "Grant A", "s", "555"], ["b", "Grant B", "s", "556"]])));
-    expect(JSON.stringify(await getListing(idOf("a")))).not.toContain("555");
-  });
-
   it("second apply is 409", async () => {
-    const { idOf } = await setup();
+    const { app } = await setup();
     const user = await makeUser();
-    await applyTo(user.id, idOf("a"));
-    await expect(applyTo(user.id, idOf("a"))).rejects.toMatchObject({ status: 409 });
+    await applyTo(user.id, app.id);
+    await expect(applyTo(user.id, app.id)).rejects.toMatchObject({ status: 409 });
   });
 
-  it("applying to a listing that left the sheet is 410", async () => {
-    const { form, idOf } = await setup();
+  it("closed and past-deadline listings are hidden and 410; due today stays open", async () => {
+    const { admin } = await setup();
     const user = await makeUser();
-    await syncForm(form.id, fixture(grid(H, [["b", "Grant B", "s"]])));
-    await expect(applyTo(user.id, idOf("a"))).rejects.toMatchObject({ status: 410 });
+    const closed = await makeApplication(admin, { status: "closed" });
+    const past = await makeApplication(admin, { deadline: inDays(-1) });
+    const today = await makeApplication(admin, { deadline: inDays(0) });
+    await expect(applyTo(user.id, closed.id)).rejects.toMatchObject({ status: 410 });
+    await expect(applyTo(user.id, past.id)).rejects.toMatchObject({ status: 410 });
+    await expect(getListing(past.id)).rejects.toMatchObject({ status: 404 });
+    await applyTo(user.id, today.id);
+    const ids = (await listListings(100, 0)).map((l) => l.id);
+    expect(ids).toContain(today.id);
+    expect(ids).not.toContain(closed.id);
+    expect(ids).not.toContain(past.id);
   });
 
-  it("reordered sheet keeps each submission on the right listing", async () => {
-    const { form, idOf } = await setup();
+  it("a submission keeps what the user applied to, and shows as removed once closed", async () => {
+    const { app } = await setup();
     const user = await makeUser();
-    const sub = await applyTo(user.id, idOf("b"));
-    await syncForm(form.id, fixture(grid(H, [["z", "New", "s"], ["b", "Grant B edited", "s"], ["a", "Grant A", "s"]])));
-    expect(sub.applicationId).toBe(idOf("b"));
-    const mine = await listMySubmissions(user.id);
-    expect(mine).toHaveLength(1);
-    expect(mine[0].applicationId).toBe(idOf("b"));
-    const [row] = await db.select().from(applications).where(eq(applications.id, idOf("b")));
-    expect(row.rowNumber).toBe(3);
-    expect(row.data.title).toBe("Grant B edited");
-    expect(mine[0].data.title).toBe("Grant B"); // snapshot keeps what the user applied to
+    await applyTo(user.id, app.id);
+    await updateApplication(app.id, { title: `${PREFIX} renamed`, status: "closed" });
+    const [mine] = await listMySubmissions(user.id);
+    expect(mine.title).toBe(app.title);
+    expect(mine.fields.map((f) => f.label)).toEqual(["Level"]);
+    expect(mine.listingRemoved).toBe(true);
   });
 
-  it("deleted sheet row is soft-removed, submission survives, row restores if it returns", async () => {
-    const { form, idOf } = await setup();
+  it("an external link makes the answer self-reported", async () => {
+    const { admin } = await setup();
     const user = await makeUser();
-    await applyTo(user.id, idOf("a"));
-    const res = await syncForm(form.id, fixture(grid(H, [["b", "Grant B", "s"]])));
-    expect(res.removed).toBe(1);
-    expect((await listMySubmissions(user.id))[0].listingRemoved).toBe(true);
-    expect(await listListings(100, 0, form.id)).toHaveLength(1);
-    await syncForm(form.id, fixture(grid(H, [["a", "Grant A", "s"], ["b", "Grant B", "s"]])));
-    expect((await listMySubmissions(user.id))[0].listingRemoved).toBe(false);
+    const app = await makeApplication(admin, { applyUrl: "https://example.org/apply" });
+    expect((await applyTo(user.id, app.id)).external).toBe(true);
   });
 
-  it("skips empty and duplicate keys, reports them", async () => {
-    const { form } = await setup();
-    const res = await syncForm(form.id, fixture(grid(H, [["a", "A", ""], ["", "no key", ""], ["a", "dup", ""]])));
-    expect(res.total).toBe(1);
-    expect(res.skipped.map((s) => s.row)).toEqual([3, 4]);
+  it("delete is refused with submissions, allowed without", async () => {
+    const { admin, app } = await setup();
+    const user = await makeUser();
+    await applyTo(user.id, app.id);
+    await expect(deleteApplication(app.id)).rejects.toMatchObject({ status: 409 });
+    const lone = await makeApplication(admin);
+    await deleteApplication(lone.id);
+    await expect(deleteApplication(lone.id)).rejects.toMatchObject({ status: 404 });
   });
 
-  it("refuses to wipe every listing from an empty sheet, and rejects a missing key column", async () => {
-    const { form } = await setup();
-    await expect(syncForm(form.id, fixture(grid(H, [])))).rejects.toMatchObject({ status: 422 });
-    await expect(syncForm(form.id, fixture(grid(["title"], [["x"]])))).rejects.toMatchObject({ status: 422 });
-    expect(await listListings(100, 0, form.id)).toHaveLength(2);
-  });
-
-  it("returns a submission's snapshot in sheet column order, not jsonb key order", async () => {
+  it("import creates every item in one go, and the schema rejects bad field values", async () => {
     const admin = await makeUser("admin");
-    const form = await makeForm(admin, "id");
-    // jsonb would sort these as id, name, level; the sheet order is name, level, id.
-    await syncForm(form.id, fixture(grid(["name", "level", "id"], [["Grant A", "PhD", "a"]])));
-    await updateForm(form.id, { publicColumns: ["name", "level", "id"] });
-    const [row] = await db.select().from(applications).where(eq(applications.formId, form.id));
-    const user = await makeUser();
-    await applyTo(user.id, row.id);
-    expect(Object.keys((await listMySubmissions(user.id))[0].data)).toEqual(["name", "level", "id"]);
+    const ok = applicationImport.parse({ items: [{ title: `${PREFIX} i1` }, { title: `${PREFIX} i2`, fields }] });
+    expect(await importApplications(ok.items, admin.id)).toEqual({ created: 2 });
+    expect(applicationCreate.safeParse({ title: "x", fields: [{ label: "Site", type: "url", value: "nope", public: true }] }).success).toBe(false);
+    expect(applicationCreate.safeParse({ title: "x", fields: [{ label: "A", type: "text", value: "1", public: true }, { label: "a", type: "text", value: "2", public: true }] }).success).toBe(false);
+    expect(applicationCreate.safeParse({ title: "x", applyUrl: "javascript:alert(1)" }).success).toBe(false);
   });
 });

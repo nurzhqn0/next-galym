@@ -8,7 +8,7 @@ import type { listAdminArchives } from "@/lib/services/archives";
 import type { listAdminNews } from "@/lib/services/news";
 import { pickTranslation, type Locale } from "@/lib/locale";
 import { formatDate } from "@/lib/site";
-import { listKey, useAdminLists, type AdminList as List, type Kind } from "@/lib/stores/admin-lists";
+import { listKey, useAdminLists, type AdminList as List, type TextKind } from "@/lib/stores/admin-lists";
 import { Pager } from "./pager";
 
 type NewsRow = Awaited<ReturnType<typeof listAdminNews>>["items"][number];
@@ -18,12 +18,12 @@ type ArchiveRow = Awaited<ReturnType<typeof listAdminArchives>>["items"][number]
 const stamp = { draft: "pending", published: "accepted", archived: undefined } as const;
 
 /** The news or archives list, kept in the zustand store; revisits show it at once. */
-export function AdminList({ lang, kind, page, t, initial }: { lang: Locale; kind: Kind; page: number; t: Dict["admin"]; initial: List }) {
+export function AdminList({ lang, kind, page, t, initial }: { lang: Locale; kind: TextKind; page: number; t: Dict["admin"]; initial: List<TextKind> }) {
   const router = useRouter();
   const stored = useAdminLists((s) => s.lists[listKey(kind, page)]);
   const seed = useAdminLists((s) => s.seed);
   const load = useAdminLists((s) => s.load);
-  const { items, total } = stored ?? initial;
+  const { items, total } = (stored ?? initial) as List<TextKind>;
 
   useEffect(() => {
     seed(kind, page, initial);
