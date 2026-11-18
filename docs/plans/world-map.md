@@ -296,6 +296,43 @@ The user asked for this on 2026-11-18. At 390px the full-world map is about 330p
 
 ---
 
+## Stage 7 — Instant filtering with a store
+
+The user asked for this on 2026-11-18: switching countries was too slow. Every chip and map click was a full page reload plus a server render and DB query per country. Now the page loads all live listings once, the selected country lives in a zustand store (same pattern as `lib/stores/*`), and chips and map clicks filter on the client with no request. Links keep their `href`, so the page still works with JS disabled (server-side filtering by `?country=`, as now).
+
+**Files**
+- `lib/stores/applications-filter.ts` (new): a zustand store `useApplicationsFilter` with `country: string | undefined` (an alpha-2 code, `"none"` or undefined) and `select(country)`. Never persisted. Follow the style of `lib/stores/my-answers.ts` (doc comment, `create<State>()(...)`).
+- `components/applications-browser.tsx` (new, `"use client"`):
+  - Props: `listings` (all live listings, public shape including `countries`), `counts`, `none`, `initial` (the normalized server selection), `lang`, `t`, `labels`, and `map: React.ReactNode` (the server-rendered SVG).
+  - On mount, set the store from `initial`. Also listen to `popstate` so the browser's back and forward buttons update the store from `location.search` (normalize it the same way the page does).
+  - **Selecting**: `select(code)` updates the store and calls `history.pushState(null, "", href)`, using the same hrefs as the links. Clicking the selected country again clears the filter, the same rule as the server links. Don't use `router.push` (no server round trip).
+  - **Chips**: render the chip list here, with the same markup, classes, hrefs and `aria-current` as `components/country-filter.tsx`. Add an `onClick` that does `preventDefault()` plus `select(...)`, but let modified clicks (meta, ctrl, shift, middle button) through to the browser.
+  - **Map**: wrap `map` in a `<div>` with `onClickCapture` delegation: find `closest("a[data-code]")` and handle it like a chip (same modified-click rule). Render a small `<style>` element that fills the selected country's paths and markers with `--color-ink-deep` (e.g. `[data-map] a[data-code="CH"] :is(path,circle):not([fill="transparent"]){fill:var(--color-ink-deep)}`). Because this client component is also server-rendered, the style is there without JS too. Escape or validate the code before putting it in CSS: only `[A-Z]{2}` reaches the rule.
+  - **List**: filter `listings` by the store's country (code → `countries.includes(code)`, `"none"` → empty `countries`, undefined → all). Render the same `<ol>` / `AnswerRow` markup and numbering as the page does now, renumbered from 1 within the filtered list, and the same empty states (`emptyCountry` for a code, `t.open.empty` for none/all).
+- `components/applications-map.tsx`: put `data-code={code}` on every linked `<Link>` (hit and shape), and `data-map` on the root `<svg>`. Remove the server-baked selected state from the map: no `fill-ink-deep` class for the selected country and no selected-dependent href. Every country link always points to `?country=CODE`. The browser component's style rule now does the highlight, and its click handler does the toggle-to-clear. Keep the hover classes. The `selected` prop is still needed for the zoom box only if it is used there; otherwise remove it.
+- `app/[lang]/applications/page.tsx`: `Listings` loads `openApplications(100)` (all live, unfiltered; one cache entry) plus `openCountryCounts()`, and renders `<ApplicationsBrowser … map={<ApplicationsMap … />} />`. It no longer renders `CountryFilter` or the list itself. Keep the `Suspense` wrapper and fallback, and keep the PPR shell (◐).
+- `components/country-filter.tsx`: delete it if nothing else uses it.
+- `components/answer-row.tsx`: change only if needed for it to render inside a client component (it must not import server-only code). Don't change its markup.
+
+**Acceptance**
+- After hydration, clicking a chip or a map country updates the list in under 100ms, with no document or RSC request to `/applications` (check with CDP Network events). The URL updates to `?country=XX`, and Back returns to the previous selection.
+- Clicking the selected chip or map country again clears the filter and the URL.
+- The map highlight follows the store: the selected country is `ink-deep` and the previously selected one returns to `ink`.
+- With JS disabled, the links still work: a server render filters by `?country=`, and the map highlight comes from the server-rendered style.
+- A direct load of `/en/applications?country=CH` shows the filtered list in the server HTML, so there's no flash of all listings.
+- Cmd/Ctrl-click on a chip opens a new tab, as normal.
+- No map geometry code ships to the client. The client bundle grows only by the browser component and the store.
+- lint, tsc and build pass, and `npm test` passes on scratch.
+
+**Gates**
+- lint
+- tsc
+- `set -a; source .env.test.local; set +a; npm test`
+- `set -a; source .env.test.local; set +a; npm run build`
+- Main session: CDP check. Click chips and map countries at 1280px and 390px, check timing and that no navigation requests happen, check Back, and run a JS-disabled check.
+
+---
+
 ## Production rollout (manual, after all stages)
 
 The user approves each step explicitly:
