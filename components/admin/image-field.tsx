@@ -62,7 +62,7 @@ export function ImageField({
     <Field id={id} label={label} hint={hint}>
       <div className="grid gap-3">
         {value && (
-          <div className="relative aspect-video border-[2.5px] border-ink bg-stock">
+          <div className="relative rounded-2xl aspect-video border-[1.5px] border-ink bg-stock">
             <Image src={value} alt="" fill sizes="(min-width: 48rem) 45rem, 100vw" className="object-cover" />
           </div>
         )}

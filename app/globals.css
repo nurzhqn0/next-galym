@@ -3,8 +3,8 @@
 /* The Answer Sheet: gold carbon-copy stock, printed in one crimson ink. */
 @theme inline {
   --color-stock: #ffd576;
-  --color-stock-lit: #ffe6a6;
-  --color-stock-deep: #f2bb4e;
+  --color-stock-lit: #fdecbd;
+  --color-stock-deep: #ecc668;
   --color-ink: #a8042b;
   --color-ink-deep: #2a0610;
   --font-label: var(--font-fira-xc), "Arial Narrow", sans-serif;
@@ -12,13 +12,7 @@
 }
 
 :root {
-  --track: 12px;
   color-scheme: light;
-}
-@media (max-width: 767px) {
-  :root {
-    --track: 8px;
-  }
 }
 
 html {
@@ -47,21 +41,6 @@ body {
 :lang(kk) .display,
 :lang(ru) .display {
   line-height: 1;
-}
-
-/* Timing track: the column of black marks down the edge of every answer sheet. */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0 auto 0 0;
-  width: var(--track);
-  background: repeating-linear-gradient(
-    to bottom,
-    var(--color-ink-deep) 0 10px,
-    transparent 10px 22px
-  );
-  pointer-events: none;
-  z-index: 40;
 }
 
 ::selection {
@@ -105,10 +84,11 @@ a {
 
   /* A printed field: ruled box, lit stock inside. */
   .field {
-    border: 2.5px solid var(--color-ink);
+    border: 1.5px solid var(--color-ink);
     background: var(--color-stock-lit);
     color: var(--color-ink);
     min-height: 44px;
+    border-radius: 8px;
     white-space: nowrap;
     display: inline-flex;
     align-items: center;
@@ -148,7 +128,7 @@ a {
     width: var(--size);
     height: var(--size);
     flex: none;
-    border: 2.5px solid currentColor;
+    border: 1.5px solid currentColor;
     border-radius: 50%;
     display: inline-grid;
     place-items: center;
@@ -186,7 +166,7 @@ a {
   .comb > span {
     width: 2.4rem;
     height: 3.2rem;
-    border: 2.5px solid var(--color-ink);
+    border: 1.5px solid var(--color-ink);
     background: var(--color-stock-lit);
   }
 
@@ -206,13 +186,14 @@ a {
   }
   .stamp[data-status="rejected"] {
     border-style: double;
-    border-width: 5px;
+    border-width: 4px;
   }
   .stamp {
     display: inline-block;
-    border: 2.5px solid var(--color-ink);
+    border: 1.5px solid var(--color-ink);
     color: var(--color-ink);
     padding: 0.2rem 0.55rem;
+    border-radius: 6px;
     transform: rotate(-3deg);
     font-family: var(--font-label);
     font-weight: 800;
@@ -222,26 +203,8 @@ a {
     line-height: 1.1;
   }
 
-  /* Registration crosshair printed at a sheet's corners. */
-  .crosshair {
-    position: absolute;
-    width: 22px;
-    height: 22px;
-    pointer-events: none;
-    background:
-      linear-gradient(var(--color-ink), var(--color-ink)) center / 2px 100% no-repeat,
-      linear-gradient(var(--color-ink), var(--color-ink)) center / 100% 2px no-repeat;
-  }
-  .crosshair::after {
-    content: "";
-    position: absolute;
-    inset: 5px;
-    border: 2px solid var(--color-ink);
-    border-radius: 50%;
-  }
-
   .rule {
-    border-top: 2.5px solid var(--color-ink);
+    border-top: 1.5px solid var(--color-ink);
   }
   .on-ink .rule {
     border-color: var(--color-stock);
@@ -250,15 +213,15 @@ a {
   .input {
     width: 100%;
     min-height: 48px;
-    border: 2.5px solid var(--color-ink);
+    border: 1.5px solid var(--color-ink);
     background: var(--color-stock-lit);
     color: var(--color-ink-deep);
     padding: 0.5rem 0.8rem;
     font: inherit;
-    border-radius: 0;
+    border-radius: 8px;
   }
   .input:focus-visible {
-    background: #fff3cc;
+    background: #fff4d6;
     outline-offset: 2px;
   }
   .input[aria-invalid="true"] {

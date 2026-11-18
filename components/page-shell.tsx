@@ -1,4 +1,4 @@
-const pad = "pl-[calc(var(--track)+1rem)] pr-4 md:pl-[calc(var(--track)+2rem)] md:pr-8";
+const pad = "pl-4 pr-4 md:pl-8 md:pr-8";
 
 /** Common frame for inner pages: one sheet, one heading. */
 export function PageShell({ title, intro, children, narrow }: { title: string; intro?: string; children: React.ReactNode; narrow?: boolean }) {

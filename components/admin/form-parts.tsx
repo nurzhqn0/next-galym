@@ -69,7 +69,7 @@ export function SaveBar({ busy, error, t, disabled = false }: { busy: boolean; e
 /** One language's fieldset: a rule above, the language name and whether it is required. */
 export function LocaleFieldset({ legend, children }: { legend: string; children: React.ReactNode }) {
   return (
-    <fieldset className="grid gap-4 border-t-[2.5px] border-ink pt-5">
+    <fieldset className="grid gap-4 border-t-[1.5px] border-ink pt-5">
       {/* Floated so the legend sits under the rule, not in it. */}
       <legend className="label float-left w-full text-xl text-ink">{legend}</legend>
       {children}

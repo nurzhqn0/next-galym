@@ -40,7 +40,7 @@ export function AdminAccounts({
   }, [load, q, lang, router]);
 
   const row = (u: Account, role: "admin" | "user", label: string) => (
-    <li key={u.id} className="grid gap-3 border-t-[2.5px] border-ink py-4 md:grid-cols-[1fr_auto] md:items-center">
+    <li key={u.id} className="grid gap-3 border-t-[1.5px] border-ink py-4 md:grid-cols-[1fr_auto] md:items-center">
       <div className="min-w-0">
         <p className="break-words text-xl font-bold">{u.fullName}</p>
         <p className="break-all">
@@ -59,7 +59,7 @@ export function AdminAccounts({
           {a.current}
         </h2>
         {admins.length ? (
-          <ul className="mt-4 border-b-[2.5px] border-ink">{admins.map((u) => row(u, "user", a.remove))}</ul>
+          <ul className="mt-4 border-b-[1.5px] border-ink">{admins.map((u) => row(u, "user", a.remove))}</ul>
         ) : (
           <p className="mt-4 text-lg">{a.none}</p>
         )}
@@ -83,7 +83,7 @@ export function AdminAccounts({
         </form>
         {q &&
           found &&
-          (found.length ? <ul className="mt-6 border-b-[2.5px] border-ink">{found.map((u) => row(u, "admin", a.make))}</ul> : <p className="mt-6 text-lg">{a.noResults}</p>)}
+          (found.length ? <ul className="mt-6 border-b-[1.5px] border-ink">{found.map((u) => row(u, "admin", a.make))}</ul> : <p className="mt-6 text-lg">{a.noResults}</p>)}
       </section>
     </>
   );

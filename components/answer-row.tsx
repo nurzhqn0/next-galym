@@ -10,7 +10,7 @@ export function AnswerRow({ n, listing, t, lang, i = 0, wide = false }: { n: num
   const [title, ...rest] = entries;
   return (
     <li
-      className={`print-in grid grid-cols-[2.5rem_1fr] gap-x-4 gap-y-4 border-t-[2.5px] border-ink py-5 ${wide ? "md:grid-cols-[4rem_1fr_auto] md:items-start md:py-6" : ""}`}
+      className={`print-in grid grid-cols-[2.5rem_1fr] gap-x-4 gap-y-4 border-t-[1.5px] border-ink py-5 ${wide ? "md:grid-cols-[4rem_1fr_auto] md:items-start md:py-6" : ""}`}
       style={{ ["--i" as string]: i }}
     >
       <span className={`label text-4xl text-ink ${wide ? "md:text-5xl" : ""}`} aria-hidden="true">

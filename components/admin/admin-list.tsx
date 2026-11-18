@@ -38,13 +38,13 @@ export function AdminList({ lang, kind, page, t, initial }: { lang: Locale; kind
   return (
     <>
       {items.length ? (
-        <ul className="mt-8 border-b-[2.5px] border-ink">
+        <ul className="mt-8 border-b-[1.5px] border-ink">
           {items.map((item, i) => {
             const n = kind === "news" ? (item as NewsRow) : null;
             const file = kind === "archives" ? (item as ArchiveRow).fileUrl : "";
             const title = pickTranslation(item.translations as { locale: "en" | "kk" | "ru"; title: string }[], lang)?.title ?? n?.slug ?? file;
             return (
-              <li key={item.id} style={{ ["--i" as string]: Math.min(i, 3) }} className="print-in border-t-[2.5px] border-ink">
+              <li key={item.id} style={{ ["--i" as string]: Math.min(i, 3) }} className="print-in border-t-[1.5px] border-ink">
                 <Link
                   href={`/${lang}/admin/${kind}/${item.id}`}
                   className={`grid gap-2 px-2 py-5 hover:bg-stock-lit md:items-center md:gap-6 ${n ? "md:grid-cols-[10rem_1fr_auto]" : "md:grid-cols-[1fr_auto]"}`}

@@ -26,4 +26,4 @@ export function errorText(status: number, e: Dict["admin"]["errors"]) {
   return e.generic;
 }
 
-export const alertClass = "border-[2.5px] border-dashed border-ink bg-[#ffd0c8] p-3 font-medium";
+export const alertClass = "rounded-2xl border-[1.5px] border-dashed border-ink bg-[#ffd0c8] p-3 font-medium";

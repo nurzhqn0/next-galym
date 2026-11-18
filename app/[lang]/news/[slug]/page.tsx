@@ -27,7 +27,7 @@ async function Article({ params }: { params: PageProps<"/[lang]/news/[slug]">["p
   // Set when the post has no text in this language and another translation is shown.
   const textLang = n.locale && n.locale !== lang ? n.locale : undefined;
   return (
-    <article className="pl-[calc(var(--track)+1rem)] pr-4 pb-24 pt-10 md:pl-[calc(var(--track)+2rem)] md:pr-8 md:pt-14">
+    <article className="pl-4 pr-4 pb-24 pt-10 md:pl-8 md:pr-8 md:pt-14">
       <div className="mx-auto max-w-[60rem]">
         <header className="mx-auto max-w-[44rem]">
           <Link href={`/${lang}/news`} className="label inline-flex min-h-11 items-center gap-2 text-ink underline-offset-4 hover:underline">
@@ -43,7 +43,7 @@ async function Article({ params }: { params: PageProps<"/[lang]/news/[slug]">["p
         </header>
         {/* A cover saved before uploads existed may live elsewhere; next/image only loads from the Blob store. */}
         {n.coverImageUrl && isBlobUrl(n.coverImageUrl) && (
-          <div className="relative mt-10 aspect-[16/9] overflow-hidden rounded-2xl border-[2.5px] border-ink bg-stock-lit">
+          <div className="relative mt-10 aspect-[16/9] overflow-hidden rounded-2xl border-[1.5px] border-ink bg-stock-lit">
             <Image src={n.coverImageUrl} alt="" fill preload sizes="(min-width: 64rem) 60rem, 100vw" className="object-cover" />
           </div>
         )}

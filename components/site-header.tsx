@@ -10,7 +10,6 @@ export async function SiteHeader({ lang, t }: { lang: Locale; t: Dict }) {
   const user = await currentUser();
   const items = [
     { href: `/${lang}#about`, label: t.nav.about },
-    { href: `/${lang}#results`, label: t.nav.results },
     { href: `/${lang}#news`, label: t.nav.news },
     { href: `/${lang}/applications`, label: t.nav.applications },
     { href: `/${lang}/archives`, label: t.nav.archives },
@@ -21,7 +20,7 @@ export async function SiteHeader({ lang, t }: { lang: Locale; t: Dict }) {
   const admin = user && user.role !== "user" ? { href: `/${lang}/admin/news`, label: t.nav.admin } : null;
 
   return (
-    <header className="relative pl-[calc(var(--track)+1rem)] pr-4 pt-4 md:pl-[calc(var(--track)+2rem)] md:pr-8">
+    <header className="relative pl-4 pr-4 pt-4 md:pl-8 md:pr-8">
       <div className="mx-auto flex max-w-[1240px] items-center justify-between gap-4">
         <Link href={`/${lang}`} aria-label={t.nav.home} className="block w-44 shrink-0 md:w-56">
           <Logo tone="crimson" label="Next Galym" className="h-auto w-full" />

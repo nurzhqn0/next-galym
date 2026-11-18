@@ -76,7 +76,7 @@ export function AuthForm({ mode, lang, t }: { mode: "login" | "register"; lang: 
   );
 
   return (
-    <form onSubmit={submit} method="post" className="grid gap-5 border-[2.5px] border-ink bg-stock-lit p-6 md:p-8">
+    <form onSubmit={submit} method="post" className="rounded-2xl grid gap-5 border-[1.5px] border-ink bg-stock-lit p-6 md:p-8">
       {register && field("fullName", t.auth.fullName, "text", { autoComplete: "name", maxLength: 200 })}
       {field("email", t.auth.email, "email", { autoComplete: "email", maxLength: 320 })}
       {field("password", t.auth.password, "password", {
@@ -86,7 +86,7 @@ export function AuthForm({ mode, lang, t }: { mode: "login" | "register"; lang: 
       })}
       {register && <p className="-mt-3 text-sm">{t.auth.passwordHint}</p>}
       {error && (
-        <p id="auth-error" role="alert" className="border-[2.5px] border-dashed border-ink bg-[#ffd0c8] p-3 font-medium">
+        <p id="auth-error" role="alert" className="rounded-2xl border-[1.5px] border-dashed border-ink bg-[#ffd0c8] p-3 font-medium">
           {error}
         </p>
       )}

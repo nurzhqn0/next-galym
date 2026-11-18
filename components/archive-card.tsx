@@ -39,9 +39,9 @@ export function ArchiveCard({ item, lang, t }: { item: ArchiveItem; lang: string
       href={item.fileUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className="group flex h-full flex-col overflow-hidden rounded-2xl border-[2.5px] border-ink bg-stock-lit hover:bg-stock"
+      className="group flex h-full flex-col overflow-hidden rounded-2xl border-[1.5px] border-ink bg-stock-lit hover:bg-stock"
     >
-      <span className="relative block aspect-video border-b-[2.5px] border-ink bg-stock-lit">
+      <span className="relative block aspect-video border-b-[1.5px] border-ink bg-stock-lit">
         {photo ? (
           <Image src={photo} alt="" fill sizes="(min-width: 1024px) 400px, (min-width: 768px) 50vw, 100vw" className="object-cover" />
         ) : (

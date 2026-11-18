@@ -17,7 +17,7 @@ export function AuthGate({ mode, lang, t }: { mode: "login" | "register"; lang: 
       fallback={
         <div
           aria-hidden="true"
-          className={`border-[2.5px] border-ink bg-stock-lit ${mode === "register" ? "min-h-[33rem]" : "min-h-[25rem]"}`}
+          className={`rounded-2xl border-[1.5px] border-ink bg-stock-lit ${mode === "register" ? "min-h-[33rem]" : "min-h-[25rem]"}`}
         />
       }
     >

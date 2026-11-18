@@ -24,7 +24,7 @@ export function MobileMenu({ label, children }: { label: string; children: React
       <summary className="field label cursor-pointer list-none [&::-webkit-details-marker]:hidden">{label}</summary>
       <div
         onClick={(e) => (e.target as HTMLElement).closest("a") && setOpen(false)}
-        className="absolute right-0 top-[calc(100%+0.5rem)] z-30 grid w-[min(86vw,20rem)] gap-2 border-[2.5px] border-ink bg-stock p-3"
+        className="absolute right-0 top-[calc(100%+0.5rem)] z-30 grid w-[min(86vw,20rem)] rounded-2xl gap-2 border-[1.5px] border-ink bg-stock p-3"
       >
         {children}
       </div>

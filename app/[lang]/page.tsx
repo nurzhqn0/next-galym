@@ -7,7 +7,7 @@ import { currentUser } from "@/lib/auth/guard";
 import { latestArchives, latestNews, openApplications } from "@/lib/data";
 import { getDictionary, getLocale } from "./dictionaries";
 
-const pad = "pl-[calc(var(--track)+1rem)] pr-4 md:pl-[calc(var(--track)+2rem)] md:pr-8";
+const pad = "pl-4 pr-4 md:pl-8 md:pr-8";
 const wrap = "mx-auto max-w-[1240px]";
 
 /** Renders one or the other once the session is known. Reads the cookie, so wrap it in Suspense. */
@@ -60,11 +60,7 @@ export default async function Home() {
             </div>
           </div>
 
-          <div className="relative border-[2.5px] border-ink bg-stock-lit p-5 md:p-7">
-            <span className="crosshair -left-3 -top-3" aria-hidden="true" />
-            <span className="crosshair -right-3 -top-3" aria-hidden="true" />
-            <span className="crosshair -bottom-3 -left-3" aria-hidden="true" />
-            <span className="crosshair -bottom-3 -right-3" aria-hidden="true" />
+          <div className="rounded-2xl relative border-[1.5px] border-ink bg-stock-lit p-5 md:p-7">
             <h2 className="display text-4xl">{t.open.title}</h2>
             {listings.length > 0 ? (
               <ol className="mt-4">
@@ -73,7 +69,7 @@ export default async function Home() {
                 ))}
               </ol>
             ) : (
-              <div className="mt-5 grid gap-4 border-t-[2.5px] border-ink pt-6">
+              <div className="mt-5 grid gap-4 border-t-[1.5px] border-ink pt-6">
                 <span className="flex gap-2" aria-hidden="true">
                   {["A", "B", "C", "D"].map((c) => (
                     <span key={c} className="bubble" data-filled="false">
@@ -114,7 +110,7 @@ export default async function Home() {
               <h3 className="label mb-4 text-xl">{t.about.stepsTitle}</h3>
               <ol className="grid gap-3">
                 {t.about.steps.map((s, i) => (
-                  <li key={s} className="flex items-center gap-4 border-[2.5px] border-ink bg-stock-lit p-3">
+                  <li key={s} className="rounded-2xl flex items-center gap-4 border-[1.5px] border-ink bg-stock-lit p-3">
                     <span className="bubble" data-filled="false" aria-hidden="true">
                       {i + 1}
                     </span>

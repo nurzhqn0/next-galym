@@ -50,7 +50,7 @@ export function ArchiveForm({ lang, t, initial }: { lang: string; t: Dict["admin
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-6 border-[2.5px] border-ink bg-stock-lit p-6 md:p-8">
+    <form onSubmit={submit} className="rounded-2xl grid gap-6 border-[1.5px] border-ink bg-stock-lit p-6 md:p-8">
       <Field id="fileUrl" label={t.archives.fileUrl} hint={t.archives.fileUrlHint}>
         <input
           id="fileUrl"
