@@ -17,10 +17,11 @@ export function isUniqueViolation(e: unknown): boolean {
   return err?.code === "23505" || err?.cause?.code === "23505";
 }
 
-/** Postgres foreign key violation (a restrict delete, for example). */
+/** Postgres foreign key violation: 23503, or 23001 which ON DELETE RESTRICT raises. */
 export function isForeignKeyViolation(e: unknown): boolean {
   const err = e as { code?: string; cause?: { code?: string } };
-  return err?.code === "23503" || err?.cause?.code === "23503";
+  const code = err?.code ?? err?.cause?.code;
+  return code === "23503" || code === "23001";
 }
 
 /** Escapes LIKE wildcards so a search for "50%" matches the text, not everything. */

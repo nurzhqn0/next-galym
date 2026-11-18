@@ -2,7 +2,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { HttpError } from "@/lib/http";
 import type { Locale } from "@/lib/locale";
 import { countArchives, getAdminArchive, listAdminArchives, listArchives } from "@/lib/services/archives";
-import { listListings } from "@/lib/services/applications";
+import { getAdminApplication, listAdminApplications, listCategories, listListings } from "@/lib/services/applications";
 import { countPublicNews, getAdminNews, listAdminNews, listPublicNews } from "@/lib/services/news";
 
 // Cached reads for pages. Admin mutations call revalidateTag with the same tags.
@@ -77,4 +77,25 @@ export async function adminArchive(id: string) {
   cacheTag("archives");
   cacheLife("minutes");
   return getAdminArchive(id).catch(nullIf404);
+}
+
+export async function adminApplicationList(limit: number, offset: number) {
+  "use cache";
+  cacheTag("applications");
+  cacheLife("minutes");
+  return listAdminApplications(limit, offset);
+}
+
+export async function adminApplication(id: string) {
+  "use cache";
+  cacheTag("applications");
+  cacheLife("minutes");
+  return getAdminApplication(id).catch(nullIf404);
+}
+
+export async function applicationCategories() {
+  "use cache";
+  cacheTag("applications");
+  cacheLife("minutes");
+  return listCategories();
 }

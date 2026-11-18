@@ -1,12 +1,15 @@
 import { create } from "zustand";
+import type { listAdminApplications } from "@/lib/services/applications";
 import type { listAdminArchives } from "@/lib/services/archives";
 import type { listAdminNews } from "@/lib/services/news";
 
 export const PAGE_SIZE = 50;
 
-export type Kind = "news" | "archives";
+export type Kind = "news" | "archives" | "applications";
+export type TextKind = "news" | "archives";
+type Lists = { news: typeof listAdminNews; archives: typeof listAdminArchives; applications: typeof listAdminApplications };
 // Dates arrive as JSON strings from the API; formatDate takes both.
-export type AdminList<K extends Kind = Kind> = Awaited<ReturnType<K extends "news" ? typeof listAdminNews : typeof listAdminArchives>>;
+export type AdminList<K extends Kind = Kind> = Awaited<ReturnType<Lists[K]>>;
 
 type State = {
   /** One list per kind and page, e.g. "news:1". */

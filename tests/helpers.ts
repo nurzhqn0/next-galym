@@ -1,10 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { eq, like } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { applicationForms, archives, authAttempts, news, users } from "@/lib/db/schema";
+import { applications, archives, authAttempts, news, users } from "@/lib/db/schema";
 import { register } from "@/lib/services/auth";
-import { createForm } from "@/lib/services/applications";
-import type { Cell } from "@/lib/services/sheets";
+import { createApplication } from "@/lib/services/applications";
 
 export const PREFIX = "t3st";
 export const PASSWORD = "correct-horse-battery";
@@ -21,21 +20,14 @@ export async function makeUser(role: "user" | "admin" | "superuser" = "user") {
   return { ...user, role, email, token };
 }
 
-/** A sheet as the fetcher returns it: a cell is its text, plus a link target when it is a hyperlink. */
-export const grid = (header: string[], rows: (string | Cell)[][]): Cell[][] =>
-  [header, ...rows].map((r) => r.map((c) => (typeof c === "string" ? { text: c } : c)));
-
-export async function makeForm(admin: { id: string }, keyColumn = "id", extra: Partial<Parameters<typeof createForm>[0]> = {}) {
-  return createForm(
-    { title: `${PREFIX} form`, googleSheetId: "x".repeat(30), sheetName: "Sheet1", keyColumn, ...extra },
-    admin.id,
-  );
+export async function makeApplication(admin: { id: string }, extra: Partial<Parameters<typeof createApplication>[0]> = {}) {
+  return createApplication({ title: `${PREFIX} application`, ...extra }, admin.id);
 }
 
 export async function cleanup() {
   // Users first: their submissions cascade, which unblocks deleting forms.
   await db.delete(users).where(like(users.email, `${PREFIX}-%`));
-  await db.delete(applicationForms).where(like(applicationForms.title, `${PREFIX}%`));
+  await db.delete(applications).where(like(applications.title, `${PREFIX}%`));
   await db.delete(news).where(like(news.slug, `${PREFIX}-%`));
   await db.delete(archives).where(like(archives.fileUrl, `%${PREFIX}%`));
   await db.delete(authAttempts).where(like(authAttempts.key, `%${PREFIX}%`));

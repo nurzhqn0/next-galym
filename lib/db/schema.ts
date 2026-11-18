@@ -1,6 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -12,6 +13,7 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
+import type { AppField, Snapshot } from "@/lib/application-fields";
 
 export const userRole = pgEnum("user_role", ["superuser", "admin", "user"]);
 export const newsStatus = pgEnum("news_status", ["draft", "published", "archived"]);
@@ -119,46 +121,26 @@ export const archiveTranslations = pgTable(
   (t) => [uniqueIndex("archive_translations_uq").on(t.archiveId, t.locale)],
 );
 
-export type FormColumn = { header: string; public: boolean };
-
-export const applicationForms = pgTable("application_forms", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  title: varchar("title", { length: 300 }).notNull(),
-  googleSheetId: varchar("google_sheet_id", { length: 200 }).notNull(),
-  sheetName: varchar("sheet_name", { length: 200 }).notNull(),
-  keyColumn: varchar("key_column", { length: 200 }).notNull(),
-  // Optional columns that give a row an external apply link, a hand-typed status and a dd.mm.yyyy deadline.
-  linkColumn: varchar("link_column", { length: 200 }),
-  statusColumn: varchar("status_column", { length: 200 }),
-  deadlineColumn: varchar("deadline_column", { length: 200 }),
-  schemaDefinition: jsonb("schema_definition")
-    .$type<{ columns: FormColumn[] }>()
-    .notNull()
-    .default({ columns: [] }),
-  isActive: boolean("is_active").notNull().default(true),
-  lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
-  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
-  ...timestamps,
-});
+export const applicationStatus = pgEnum("application_status", ["open", "closed"]);
 
 export const applications = pgTable(
   "applications",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    formId: uuid("form_id")
-      .notNull()
-      .references(() => applicationForms.id, { onDelete: "cascade" }),
-    externalKey: varchar("external_key", { length: 300 }).notNull(),
-    rowNumber: integer("row_number").notNull(),
-    data: jsonb("data").$type<Record<string, string>>().notNull().default({}),
-    removedAt: timestamp("removed_at", { withTimezone: true }),
-    parsedAt: timestamp("parsed_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamps.updatedAt,
+    title: varchar("title", { length: 300 }).notNull(),
+    // Free text group label shown under the title.
+    category: varchar("category", { length: 200 }),
+    // An external apply link: the student opens it, then marks "I applied" themselves.
+    applyUrl: text("apply_url"),
+    // yyyy-mm-dd. A listing past its deadline (Asia/Almaty) is no longer shown.
+    deadline: date("deadline", { mode: "string" }),
+    status: applicationStatus("status").notNull().default("open"),
+    // Ordered custom fields; only those marked public ever leave the server.
+    fields: jsonb("fields").$type<AppField[]>().notNull().default([]),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
   },
-  (t) => [
-    uniqueIndex("applications_form_key_uq").on(t.formId, t.externalKey),
-    index("applications_form_order_idx").on(t.formId, t.rowNumber),
-  ],
+  (t) => [index("applications_status_deadline_idx").on(t.status, t.deadline)],
 );
 
 export const applicationSubmissions = pgTable(
@@ -175,7 +157,7 @@ export const applicationSubmissions = pgTable(
     status: submissionStatus("status").notNull().default("pending"),
     // true: the student applied on an external site and marked it themselves, so it is never confirmed.
     external: boolean("external").notNull().default(false),
-    dataSnapshot: jsonb("data_snapshot").$type<Record<string, string>>().notNull(),
+    dataSnapshot: jsonb("data_snapshot").$type<Snapshot>().notNull(),
     ...timestamps,
   },
   (t) => [
@@ -188,7 +170,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(sessions),
   news: many(news),
   archives: many(archives),
-  forms: many(applicationForms),
+  applications: many(applications),
   submissions: many(applicationSubmissions),
 }));
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -208,12 +190,8 @@ export const archivesRelations = relations(archives, ({ one, many }) => ({
 export const archiveTranslationsRelations = relations(archiveTranslations, ({ one }) => ({
   archive: one(archives, { fields: [archiveTranslations.archiveId], references: [archives.id] }),
 }));
-export const applicationFormsRelations = relations(applicationForms, ({ one, many }) => ({
-  creator: one(users, { fields: [applicationForms.createdBy], references: [users.id] }),
-  applications: many(applications),
-}));
 export const applicationsRelations = relations(applications, ({ one, many }) => ({
-  form: one(applicationForms, { fields: [applications.formId], references: [applicationForms.id] }),
+  creator: one(users, { fields: [applications.createdBy], references: [users.id] }),
   submissions: many(applicationSubmissions),
 }));
 export const submissionsRelations = relations(applicationSubmissions, ({ one }) => ({

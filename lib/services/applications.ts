@@ -1,66 +1,59 @@
-import { and, asc, count, desc, eq, ilike, isNull, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { applicationForms, applications, applicationSubmissions, users } from "@/lib/db/schema";
+import { applications, applicationSubmissions, users } from "@/lib/db/schema";
 import { HttpError, isForeignKeyViolation, isUniqueViolation, likePattern } from "@/lib/http";
-import { parseSheetId } from "@/lib/sheet-url";
+import {
+  type AppField,
+  type Snapshot,
+  fieldTypes,
+  httpUrl,
+  isLive,
+  todayAlmaty,
+  valueFits,
+} from "@/lib/application-fields";
+import { toCsv } from "@/lib/application-import";
 
-type Columns = typeof applicationForms.$inferSelect.schemaDefinition;
+type Application = typeof applications.$inferSelect;
 
-/** Only columns an admin explicitly marked public ever leave the server. */
-export function publicData(data: Record<string, string>, schema: Columns, linkColumn?: string | null) {
-  const out: Record<string, string> = {};
-  // The link column is never a normal field: it is exposed as `applyUrl` instead.
-  for (const c of schema.columns) if (c.public && c.header !== linkColumn && c.header in data) out[c.header] = data[c.header];
-  return out;
-}
+/** Only fields an admin marked public ever leave the server. */
+const publicFields = (fields: AppField[]) =>
+  fields.filter((f) => f.public).map(({ label, type, value }) => ({ label, type, value }));
 
-const applyUrlOf = (data: Record<string, string>, linkColumn: string | null) =>
-  (linkColumn && data[linkColumn]?.trim()) || null;
-
-const liveListing = and(isNull(applications.removedAt), eq(applicationForms.isActive, true));
-
-const listingShape = (r: {
-  application: typeof applications.$inferSelect;
-  form: typeof applicationForms.$inferSelect;
-}) => ({
-  id: r.application.id,
-  formId: r.form.id,
-  formTitle: r.form.title,
-  applyUrl: applyUrlOf(r.application.data, r.form.linkColumn),
-  data: publicData(r.application.data, r.form.schemaDefinition, r.form.linkColumn),
+const publicShape = (a: Application) => ({
+  id: a.id,
+  title: a.title,
+  category: a.category,
+  applyUrl: a.applyUrl,
+  deadline: a.deadline,
+  fields: publicFields(a.fields),
 });
 
-export async function listListings(limit: number, offset: number, formId?: string) {
+const liveWhere = () =>
+  and(eq(applications.status, "open"), or(isNull(applications.deadline), gte(applications.deadline, todayAlmaty())));
+
+export async function listListings(limit: number, offset: number) {
   const rows = await db
-    .select({ application: applications, form: applicationForms })
+    .select()
     .from(applications)
-    .innerJoin(applicationForms, eq(applicationForms.id, applications.formId))
-    .where(and(liveListing, formId ? eq(applications.formId, formId) : undefined))
-    .orderBy(asc(applicationForms.title), asc(applications.rowNumber))
+    .where(liveWhere())
+    .orderBy(sql`${applications.deadline} asc nulls last`, asc(applications.title))
     .limit(limit)
     .offset(offset);
-  return rows.map(listingShape);
+  return rows.map(publicShape);
 }
 
 export async function getListing(id: string) {
-  const [row] = await db
-    .select({ application: applications, form: applicationForms })
-    .from(applications)
-    .innerJoin(applicationForms, eq(applicationForms.id, applications.formId))
-    .where(and(liveListing, eq(applications.id, id)));
+  const [row] = await db.select().from(applications).where(and(liveWhere(), eq(applications.id, id)));
   if (!row) throw new HttpError(404, "Application not found");
-  return listingShape(row);
+  return publicShape(row);
 }
 
 export async function applyTo(userId: string, applicationId: string) {
-  const [row] = await db
-    .select({ application: applications, form: applicationForms })
-    .from(applications)
-    .innerJoin(applicationForms, eq(applicationForms.id, applications.formId))
-    .where(eq(applications.id, applicationId));
-  if (!row || !row.form.isActive) throw new HttpError(404, "Application not found");
-  if (row.application.removedAt) throw new HttpError(410, "This application is no longer available");
+  const [row] = await db.select().from(applications).where(eq(applications.id, applicationId));
+  if (!row) throw new HttpError(404, "Application not found");
+  if (!isLive(row)) throw new HttpError(410, "This application is no longer available");
+  const snapshot: Snapshot = { title: row.title, category: row.category, fields: publicFields(row.fields) };
   try {
     const [created] = await db
       .insert(applicationSubmissions)
@@ -68,9 +61,9 @@ export async function applyTo(userId: string, applicationId: string) {
         userId,
         applicationId,
         // A listing with an external link is applied to elsewhere; this records the student's own claim.
-        external: applyUrlOf(row.application.data, row.form.linkColumn) !== null,
-        // Snapshot is public columns only: users can read their own submissions back.
-        dataSnapshot: publicData(row.application.data, row.form.schemaDefinition, row.form.linkColumn),
+        external: row.applyUrl !== null,
+        // Snapshot is public fields only: users can read their own submissions back.
+        dataSnapshot: snapshot,
       })
       .returning();
     return created;
@@ -89,29 +82,22 @@ export async function withdrawFrom(userId: string, applicationId: string) {
   if (!res.length) throw new HttpError(404, "You have not applied");
 }
 
-/** jsonb returns keys sorted by length, not in sheet order; put them back in column order. */
-function inColumnOrder(data: Record<string, string>, schema: Columns) {
-  const known = schema.columns.filter((c) => c.header in data).map((c) => c.header);
-  const rest = Object.keys(data).filter((k) => !known.includes(k));
-  return Object.fromEntries([...known, ...rest].map((k) => [k, data[k]]));
-}
-
 export async function listMySubmissions(userId: string) {
   const rows = await db
-    .select({ s: applicationSubmissions, application: applications, form: applicationForms })
+    .select({ s: applicationSubmissions, application: applications })
     .from(applicationSubmissions)
     .innerJoin(applications, eq(applications.id, applicationSubmissions.applicationId))
-    .innerJoin(applicationForms, eq(applicationForms.id, applications.formId))
     .where(eq(applicationSubmissions.userId, userId))
     .orderBy(desc(applicationSubmissions.createdAt));
   return rows.map((r) => ({
     id: r.s.id,
     applicationId: r.s.applicationId,
-    formTitle: r.form.title,
+    title: r.s.dataSnapshot.title,
+    category: r.s.dataSnapshot.category,
+    fields: r.s.dataSnapshot.fields,
     status: r.s.status,
     external: r.s.external,
-    data: inColumnOrder(r.s.dataSnapshot, r.form.schemaDefinition),
-    listingRemoved: r.application.removedAt !== null,
+    listingRemoved: !isLive(r.application),
     createdAt: r.s.createdAt,
   }));
 }
@@ -119,7 +105,7 @@ export async function listMySubmissions(userId: string) {
 const statuses = ["pending", "reviewed", "accepted", "rejected"] as const;
 export const submissionFilter = z.object({
   status: z.enum(statuses).optional(),
-  formId: z.uuid().optional(),
+  applicationId: z.uuid().optional(),
   q: z.string().trim().min(1).max(100).optional(),
 });
 export const submissionUpdate = z.object({ status: z.enum(statuses) });
@@ -127,14 +113,13 @@ export const submissionUpdate = z.object({ status: z.enum(statuses) });
 export async function listAllSubmissions(limit: number, offset: number, filter: z.infer<typeof submissionFilter> = {}) {
   const where = and(
     filter.status ? eq(applicationSubmissions.status, filter.status) : undefined,
-    filter.formId ? eq(applications.formId, filter.formId) : undefined,
+    filter.applicationId ? eq(applicationSubmissions.applicationId, filter.applicationId) : undefined,
     filter.q ? or(ilike(users.email, likePattern(filter.q)), ilike(users.fullName, likePattern(filter.q))) : undefined,
   );
   const joined = db
     .select({ n: count() })
     .from(applicationSubmissions)
     .innerJoin(users, eq(users.id, applicationSubmissions.userId))
-    .innerJoin(applications, eq(applications.id, applicationSubmissions.applicationId))
     .where(where);
   const [items, [{ n: total }]] = await Promise.all([
     db
@@ -145,14 +130,10 @@ export async function listAllSubmissions(limit: number, offset: number, filter: 
         data: applicationSubmissions.dataSnapshot,
         createdAt: applicationSubmissions.createdAt,
         applicationId: applicationSubmissions.applicationId,
-        formId: applicationForms.id,
-        formTitle: applicationForms.title,
         user: { id: users.id, email: users.email, fullName: users.fullName },
       })
       .from(applicationSubmissions)
       .innerJoin(users, eq(users.id, applicationSubmissions.userId))
-      .innerJoin(applications, eq(applications.id, applicationSubmissions.applicationId))
-      .innerJoin(applicationForms, eq(applicationForms.id, applications.formId))
       .where(where)
       .orderBy(desc(applicationSubmissions.createdAt))
       .limit(limit)
@@ -172,65 +153,136 @@ export async function setSubmissionStatus(id: string, status: z.infer<typeof sub
   return row;
 }
 
-// Forms admin
+// Admin
 
-const column = z.string().trim().min(1).max(200);
+const field = z.object({
+  label: z.string().trim().min(1).max(100),
+  type: z.enum(fieldTypes),
+  value: z.string().trim().min(1).max(5000),
+  public: z.boolean(),
+});
 
-export const formCreate = z.object({
+const fieldList = z
+  .array(field)
+  .max(50)
+  .superRefine((fields, ctx) => {
+    const seen = new Set<string>();
+    fields.forEach((f, i) => {
+      const key = f.label.toLowerCase();
+      if (seen.has(key)) ctx.addIssue({ code: "custom", path: [i, "label"], message: "Duplicate label" });
+      seen.add(key);
+      if (!valueFits(f.type, f.value)) ctx.addIssue({ code: "custom", path: [i, "value"], message: `Not a valid ${f.type}` });
+    });
+  });
+
+const emptyToNull = (v: unknown) => (typeof v === "string" && !v.trim() ? null : v);
+
+const base = z.object({
   title: z.string().trim().min(1).max(300),
-  /** A bare id or a full docs.google.com/spreadsheets/d/<id>/... URL. */
-  googleSheetId: z.string().trim().transform((v, ctx) => {
-    const id = parseSheetId(v);
-    if (!id) ctx.addIssue({ code: "custom", message: "Not a Google Sheet id or URL" });
-    return id ?? z.NEVER;
-  }),
-  sheetName: z.string().trim().min(1).max(200),
-  keyColumn: z.string().trim().min(1).max(200),
-  /** Optional sheet columns; null clears one. */
-  linkColumn: column.nullish(),
-  statusColumn: column.nullish(),
-  deadlineColumn: column.nullish(),
+  category: z.preprocess(emptyToNull, z.string().trim().max(200).nullish()),
+  applyUrl: z.preprocess(
+    emptyToNull,
+    z
+      .string()
+      .trim()
+      .nullish()
+      .transform((v, ctx) => {
+        if (v == null) return null;
+        const url = httpUrl(v);
+        if (!url) ctx.addIssue({ code: "custom", message: "Not an http(s) URL" });
+        return url ?? z.NEVER;
+      }),
+  ),
+  deadline: z.preprocess(emptyToNull, z.iso.date().nullish()),
+  status: z.enum(["open", "closed"]),
+  fields: fieldList,
 });
-export const formUpdate = formCreate.partial().extend({
-  isActive: z.boolean().optional(),
-  /** Replaces the set of public columns; every other column becomes private. */
-  publicColumns: z.array(z.string()).optional(),
+
+export const applicationCreate = base.partial({ category: true, applyUrl: true, deadline: true, status: true, fields: true });
+export const applicationUpdate = base.partial();
+export const applicationImport = z.object({ items: z.array(applicationCreate).min(1).max(500) });
+
+type Create = z.infer<typeof applicationCreate>;
+
+const values = (input: Create, createdBy: string) => ({
+  title: input.title,
+  category: input.category ?? null,
+  applyUrl: input.applyUrl ?? null,
+  deadline: input.deadline ?? null,
+  status: input.status ?? ("open" as const),
+  fields: input.fields ?? [],
+  createdBy,
 });
 
-export const listForms = () => db.select().from(applicationForms).orderBy(asc(applicationForms.title));
+export async function listAdminApplications(limit: number, offset: number) {
+  const [items, [{ n: total }]] = await Promise.all([
+    db
+      .select({
+        id: applications.id,
+        title: applications.title,
+        category: applications.category,
+        deadline: applications.deadline,
+        status: applications.status,
+        updatedAt: applications.updatedAt,
+        submissions: sql<number>`(select count(*)::int from ${applicationSubmissions} where ${applicationSubmissions.applicationId} = ${applications.id})`,
+      })
+      .from(applications)
+      .orderBy(desc(applications.createdAt), asc(applications.title))
+      .limit(limit)
+      .offset(offset),
+    db.select({ n: count() }).from(applications),
+  ]);
+  const today = todayAlmaty();
+  return { items: items.map((i) => ({ ...i, live: isLive(i, today) })), total };
+}
 
-export async function getForm(id: string) {
-  const [row] = await db.select().from(applicationForms).where(eq(applicationForms.id, id));
-  if (!row) throw new HttpError(404, "Form not found");
+export async function getAdminApplication(id: string) {
+  const [row] = await db.select().from(applications).where(eq(applications.id, id));
+  if (!row) throw new HttpError(404, "Application not found");
   return row;
 }
 
-export async function createForm(input: z.infer<typeof formCreate>, createdBy: string) {
-  const [row] = await db.insert(applicationForms).values({ ...input, createdBy }).returning();
+/** Distinct categories, for the form's suggestions. */
+export async function listCategories() {
+  const rows = await db
+    .selectDistinct({ category: applications.category })
+    .from(applications)
+    .orderBy(asc(applications.category));
+  return rows.flatMap((r) => (r.category ? [r.category] : []));
+}
+
+export async function createApplication(input: Create, createdBy: string) {
+  const [row] = await db.insert(applications).values(values(input, createdBy)).returning();
   return row;
 }
 
-export async function updateForm(id: string, input: z.infer<typeof formUpdate>) {
-  const { publicColumns, ...fields } = input;
-  const [current] = await db.select().from(applicationForms).where(eq(applicationForms.id, id));
-  if (!current) throw new HttpError(404, "Form not found");
-  const schemaDefinition = publicColumns
-    ? { columns: current.schemaDefinition.columns.map((c) => ({ ...c, public: publicColumns.includes(c.header) })) }
-    : undefined;
-  const [row] = await db
-    .update(applicationForms)
-    .set({ ...fields, ...(schemaDefinition && { schemaDefinition }) })
-    .where(eq(applicationForms.id, id))
-    .returning();
+/** All or nothing: one transaction, so a failure never leaves half a file imported. */
+export async function importApplications(items: Create[], createdBy: string) {
+  await db.transaction(async (tx) => {
+    for (let i = 0; i < items.length; i += 100) {
+      await tx.insert(applications).values(items.slice(i, i + 100).map((it) => values(it, createdBy)));
+    }
+  });
+  return { created: items.length };
+}
+
+export async function updateApplication(id: string, input: z.infer<typeof applicationUpdate>) {
+  const [row] = await db.update(applications).set(input).where(eq(applications.id, id)).returning();
+  if (!row) throw new HttpError(404, "Application not found");
   return row;
 }
 
-export async function deleteForm(id: string) {
+export async function deleteApplication(id: string) {
   try {
-    const res = await db.delete(applicationForms).where(eq(applicationForms.id, id)).returning({ id: applicationForms.id });
-    if (!res.length) throw new HttpError(404, "Form not found");
+    const res = await db.delete(applications).where(eq(applications.id, id)).returning({ id: applications.id });
+    if (!res.length) throw new HttpError(404, "Application not found");
   } catch (e) {
-    if (isForeignKeyViolation(e)) throw new HttpError(409, "Form has submissions; deactivate it instead");
+    if (isForeignKeyViolation(e)) throw new HttpError(409, "Application has submissions; close it instead");
     throw e;
   }
+}
+
+export async function exportApplications() {
+  const rows = await db.select().from(applications).orderBy(asc(applications.createdAt), asc(applications.title));
+  return toCsv(rows);
 }
