@@ -265,6 +265,36 @@ The user asked for a flat 2D map instead of the 3D globe on 2026-11-18. It is se
 
 ---
 
+## Stage 6 — Mobile map: zoom to listings
+
+The user asked for this on 2026-11-18. At 390px the full-world map is about 330px wide, so linked countries are a few px and the SG marker is under 5px, too small to tap. Below the `sm` breakpoint (640px), the map zooms to the area around countries with listings and every linked country gets a tap target of at least 44px. Desktop stays exactly as it is. No client JS, and the SVG is not rendered twice.
+
+**Files**
+- `components/applications-map.tsx`:
+  - **Focus box, per request** (cheap; the inputs are the module-cached projected centroids from stage 5): take the projected centroids of the linked countries, using `MARKERS` points for codes missing from the topology. Pad the bounding box by about 40 viewBox units on each side, grow it to the 960:500 aspect ratio (centred), clamp it to the viewBox, and compute `k = 960 / boxWidth`, capped at 3. With 0 or 1 linked countries, use a sensible default (no zoom, or a box about 240 units wide around the single point).
+  - **Zoom**: wrap all map content in one `<g>`. Put `--tx`, `--ty` and `--k` on it as inline CSS custom properties, and apply the transform only below `sm`, e.g. `max-sm:[transform:translate(var(--tx),var(--ty))_scale(var(--k))]` (pixel-free numbers in viewBox units, for example `translate(calc(var(--tx)*1px), …)` if needed to make SVG CSS transforms work; verify in a real browser). The root `<svg>` clips overflow, so the area outside the box is cropped. Borders keep `vector-effect: non-scaling-stroke`.
+  - **Markers**: the visible marker radius should look the same on mobile as on desktop, not k times bigger. Divide by `--k` below `sm` (`r` can't come from CSS in all browsers, so use a `transform: scale(1/k)` around the marker centre, or render the marker in a counter-scaled `<g>`). Pick one approach and verify it in a browser.
+  - **Tap targets**: inside each linked country's `<Link>`, add an invisible hit `<circle>` (`fill="transparent"`, `pointer-events: all`) at the country's projected centroid. Its radius is `min(22 / s, half the distance to the nearest other linked centroid)` in viewBox units, where `s` is the on-screen px per viewBox unit at 390px (about `330 / 960 * k`). Hit circles are hidden from desktop pointer events (`sm:pointer-events-none`), so desktop hit-testing stays on the real shapes. Hovering or tapping a hit circle highlights its country the same way (it is inside the same `group` link).
+  - Keep the stage 5 payload budget: the map's share stays under ~150 KB, and stage 6 should add only a few KB.
+- `DESIGN.md`: extend the Map entry with one or two sentences on mobile zoom and tap targets.
+
+**Acceptance**
+- At 390px (true mobile emulation, not a narrow desktop window): the linked countries' focus box fills the map width; Switzerland and Germany are each clearly visible; tapping the middle of Switzerland, Germany, Japan and the Singapore marker each go to the matching `?country=XX`; every linked country's tap target is at least 44×44 CSS px, except where the neighbour cap applies.
+- At 390px, no horizontal overflow, and the marker radius looks the same as on desktop.
+- At 1280px, the map looks and behaves exactly as at stage 5: no transform is applied, and hit-testing uses the real shapes.
+- Still works with JS disabled, and no map code ships to the client.
+- The map's share of `/en/applications` stays under ~150 KB.
+- lint, tsc and build pass, and `npm test` passes on scratch.
+
+**Gates**
+- lint
+- tsc
+- `set -a; source .env.test.local; set +a; npm test`
+- `set -a; source .env.test.local; set +a; npm run build`
+- Main session: headless-Chrome CDP check at 390px (mobile emulation) and 1280px, tapping CH, DE, JP and SG; screenshots.
+
+---
+
 ## Production rollout (manual, after all stages)
 
 The user approves each step explicitly:
