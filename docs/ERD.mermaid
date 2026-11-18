@@ -64,29 +64,17 @@ erDiagram
         text description
     }
 
-    %% DYNAMIC GOOGLE SHEETS APPLICATIONS
-    APPLICATION_FORMS {
-        uuid id PK
-        string title
-        string google_sheet_id
-        string sheet_name
-        string key_column "Sheet column holding a stable row id"
-        jsonb schema_definition "Headers/fields, each flagged public true/false"
-        boolean is_active
-        timestamp last_synced_at
-        uuid created_by FK
-        timestamp created_at
-        timestamp updated_at
-    }
-
+    %% ADMIN-MANAGED APPLICATIONS
     APPLICATIONS {
         uuid id PK
-        uuid form_id FK
-        string external_key "Stable id from key_column, unique per form"
-        integer row_number "Display order only, shifts when Sheet is edited"
-        jsonb data "Dynamic key-value pairs from sheet columns"
-        timestamp removed_at "Set when the row disappears from the Sheet"
-        timestamp parsed_at
+        string title
+        string category "Free text group label"
+        text apply_url "External apply link"
+        date deadline "Hidden after this day (Asia/Almaty)"
+        enum status "open | closed"
+        jsonb fields "Ordered [{label, type, value, public}]"
+        uuid created_by FK
+        timestamp created_at
         timestamp updated_at
     }
 
@@ -95,7 +83,7 @@ erDiagram
         uuid user_id FK
         uuid application_id FK
         enum status "pending | reviewed | accepted | rejected"
-        jsonb data_snapshot "Listing data as it was when the user applied"
+        jsonb data_snapshot "Title, category and public fields as they were when the user applied"
         timestamp created_at
         timestamp updated_at
     }
@@ -104,9 +92,8 @@ erDiagram
     USERS ||--o{ SESSIONS : "has"
     USERS ||--o{ NEWS : "authors"
     USERS ||--o{ ARCHIVES : "uploads"
-    USERS ||--o{ APPLICATION_FORMS : "creates/configures"
+    USERS ||--o{ APPLICATIONS : "creates"
     USERS ||--o{ APPLICATION_SUBMISSIONS : "submits"
     NEWS ||--o{ NEWS_TRANSLATIONS : "translated into"
     ARCHIVES ||--o{ ARCHIVE_TRANSLATIONS : "translated into"
-    APPLICATION_FORMS ||--o{ APPLICATIONS : "contains"
     APPLICATIONS ||--o{ APPLICATION_SUBMISSIONS : "receives"
