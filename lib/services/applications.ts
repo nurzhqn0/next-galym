@@ -256,6 +256,7 @@ export async function listAdminApplications(limit: number, offset: number) {
         category: applications.category,
         deadline: applications.deadline,
         status: applications.status,
+        countries: applications.countries,
         updatedAt: applications.updatedAt,
         submissions: sql<number>`(select count(*)::int from ${applicationSubmissions} where ${applicationSubmissions.applicationId} = ${applications.id})`,
       })

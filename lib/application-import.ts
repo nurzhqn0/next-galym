@@ -4,6 +4,7 @@ import {
   inferType,
   parseDate,
 } from "./application-fields";
+import { isCountryCode, parseCountries } from "./countries";
 
 export type ApplicationDraftInput = {
   title: string;
@@ -12,6 +13,8 @@ export type ApplicationDraftInput = {
   deadline: string | null;
   status: "open" | "closed";
   fields: AppField[];
+  countries: string[];
+  unknownCountries: string[];
 };
 export type Draft = { item: ApplicationDraftInput | null; errors: string[]; warnings: string[] };
 export type Row = { pairs: [string, string][]; line: string };
@@ -103,12 +106,20 @@ const ALIASES: Record<string, string[]> = {
   deadline: ["deadline", "дедлайн", "срок"],
   link: ["link", "url", "apply link", "ссылка"],
   status: ["status", "статус"],
+  countries: ["country", "countries", "страна", "страны", "ел"],
 };
 const reservedOf = (key: string) =>
   Object.entries(ALIASES).find(([, names]) => names.includes(key.trim().toLowerCase()))?.[0];
 
 const CLOSED = ["closed", "expired", "закрыт", "закрыто"];
 const NO_DEADLINE = ["", "no deadline", "none", "-", "нет", "без дедлайна"];
+
+/** Like parseCountries, but a bare uppercase alpha-2 code (what the export writes) is accepted too. */
+function countriesOf(text: string) {
+  const parts = text.split(/[;,]/).map((p) => p.trim());
+  if (parts.every(isCountryCode)) return { codes: [...new Set(parts)], unknown: [] };
+  return parseCountries(text);
+}
 
 /** Turns parsed rows into applications; a row without a title is an error and has no item. */
 export function toDrafts(rows: Row[]): Draft[] {
@@ -121,6 +132,9 @@ export function toDrafts(rows: Row[]): Draft[] {
     let deadline: string | null = null;
     let status: "open" | "closed" = "open";
     const fields: AppField[] = [];
+    let hasCountry = false;
+    let countries: string[] = [];
+    let unknownCountries: string[] = [];
     const labels = new Set<string>();
     const addField = (label: string, value: string, isPublic = true) => {
       if (!value.trim()) return;
@@ -133,7 +147,12 @@ export function toDrafts(rows: Row[]): Draft[] {
       const reserved = reservedOf(rawKey);
       if (reserved === "title" && !title) title = value;
       else if (reserved === "category" && category === null) category = value || null;
-      else if (reserved === "status") status = CLOSED.includes(value.trim().toLowerCase()) ? "closed" : "open";
+      else if (reserved === "countries") {
+        hasCountry = true;
+        const r = countriesOf(value);
+        countries = [...new Set([...countries, ...r.codes])];
+        unknownCountries = [...new Set([...unknownCountries, ...r.unknown])];
+      } else if (reserved === "status") status = CLOSED.includes(value.trim().toLowerCase()) ? "closed" : "open";
       else if (reserved === "link" && applyUrl === null) {
         const url = httpUrl(value);
         if (url) applyUrl = url;
@@ -154,9 +173,13 @@ export function toDrafts(rows: Row[]): Draft[] {
         addField(rawKey.replace(priv, "").trim() || rawKey, value, !isPrivate);
       }
     }
+    if (!hasCountry) {
+      const loc = row.pairs.find(([k]) => k.trim().toLowerCase() === "location");
+      if (loc) ({ codes: countries, unknown: unknownCountries } = countriesOf(loc[1]));
+    }
     if (!title.trim()) errors.push(`${row.line}: no title`);
     return {
-      item: errors.length ? null : { title: title.trim(), category, applyUrl, deadline, status, fields },
+      item: errors.length ? null : { title: title.trim(), category, applyUrl, deadline, status, fields, countries, unknownCountries },
       errors,
       warnings,
     };
@@ -183,12 +206,13 @@ export function toCsv(
     deadline: string | null;
     status: string;
     fields: AppField[];
+    countries: string[];
   }[],
 ): string {
   const labels: string[] = [];
   const header = (f: AppField) => (f.public ? f.label : `${f.label} (private)`);
   for (const a of apps) for (const f of a.fields) if (!labels.includes(header(f))) labels.push(header(f));
-  const lines = [["Title", "Category", "Deadline", "Link", "Status", ...labels]];
+  const lines = [["Title", "Category", "Deadline", "Link", "Status", "Country", ...labels]];
   for (const a of apps) {
     const byHeader = new Map(a.fields.map((f) => [header(f), f.value]));
     lines.push([
@@ -197,6 +221,7 @@ export function toCsv(
       a.deadline ? a.deadline.split("-").reverse().join(".") : "",
       a.applyUrl ?? "",
       a.status,
+      a.countries.join("; "),
       ...labels.map((l) => byHeader.get(l) ?? ""),
     ]);
   }

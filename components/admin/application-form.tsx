@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { Dict } from "@/app/[lang]/dictionaries/en";
+import { countryName, ALPHA2_TO_NUMERIC } from "@/lib/countries";
 import { fieldTypes, type AppField, type FieldType } from "@/lib/application-fields";
 import { Field, SaveBar, useSave } from "./form-parts";
 
@@ -13,6 +14,7 @@ export type ApplicationInitial = {
   deadline: string | null;
   status: "open" | "closed";
   fields: AppField[];
+  countries: string[];
 };
 
 const inputType: Record<FieldType, string> = { text: "text", longtext: "text", url: "url", date: "date", number: "text", email: "email" };
@@ -26,6 +28,28 @@ export function ApplicationForm({ lang, t, initial, categories }: { lang: string
   const a = t.applications;
   const { busy, error, save, invalid } = useSave(t, `/${lang}/admin/applications`);
   const [rows, setRows] = useState<Row[]>(() => (initial?.fields ?? []).map(withKey));
+
+  const [countries, setCountries] = useState<string[]>(initial?.countries ?? []);
+  const [query, setQuery] = useState("");
+  const countryInput = useRef<HTMLInputElement>(null);
+  const names = useMemo(() => {
+    const dn = new Intl.DisplayNames([lang], { type: "region" });
+    return Object.keys(ALPHA2_TO_NUMERIC).map((c) => [c, (dn.of(c) ?? c).toLowerCase()] as const);
+  }, [lang]);
+  const q = query.trim().toLowerCase();
+  const rank = (c: string, n: string) => (n === q || c.toLowerCase() === q ? 0 : n.startsWith(q) ? 1 : 2);
+  const matches = q
+    ? names
+        .filter(([c, n]) => !countries.includes(c) && (c.toLowerCase() === q || n.includes(q)))
+        .sort((a, b) => rank(...a) - rank(...b))
+        .map(([c]) => c)
+        .slice(0, 8)
+    : [];
+  const pick = (c: string) => {
+    setCountries((x) => [...x, c]);
+    setQuery("");
+    countryInput.current?.focus();
+  };
 
   const patch = (key: number, p: Partial<AppField>) => setRows((r) => r.map((x) => (x.key === key ? { ...x, ...p } : x)));
   const move = (i: number, d: -1 | 1) =>
@@ -47,6 +71,7 @@ export function ApplicationForm({ lang, t, initial, categories }: { lang: string
       applyUrl: text("applyUrl") || null,
       deadline: text("deadline") || null,
       status: text("status"),
+      countries,
       // A detail with no value is dropped rather than rejected.
       fields: rows.filter((r) => r.value.trim() && r.label.trim()).map(({ label, type, value, public: p }) => ({ label, type, value, public: p })),
     };
@@ -82,6 +107,52 @@ export function ApplicationForm({ lang, t, initial, categories }: { lang: string
           <option value="open">{a.statuses.open}</option>
           <option value="closed">{a.statuses.closed}</option>
         </select>
+      </Field>
+
+      <Field id="countries" label={a.countries}>
+        <div className="grid gap-2">
+          {countries.length > 0 && (
+            <ul className="flex flex-wrap gap-2">
+              {countries.map((c) => (
+                <li key={c}>
+                  <button type="button" className="field label" aria-label={`${a.countryRemove}: ${countryName(c, lang)}`} onClick={() => {
+                    setCountries((x) => x.filter((y) => y !== c));
+                    countryInput.current?.focus();
+                  }}>
+                    {countryName(c, lang)} ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <input
+            id="countries"
+            ref={countryInput}
+            value={query}
+            placeholder={a.countriesPlaceholder}
+            className="input"
+            autoComplete="off"
+            aria-invalid={invalid("countries")}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (matches[0]) pick(matches[0]);
+              } else if (e.key === "Backspace" && !query) setCountries((x) => x.slice(0, -1));
+            }}
+          />
+          {matches.length > 0 && (
+            <ul aria-live="polite" className="flex flex-wrap gap-2">
+              {matches.map((c) => (
+                <li key={c}>
+                  <button type="button" className="field label" onClick={() => pick(c)}>
+                    {countryName(c, lang)}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </Field>
 
       <fieldset className="grid gap-4 border-t-[1.5px] border-ink pt-5">
