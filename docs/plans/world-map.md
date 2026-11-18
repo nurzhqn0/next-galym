@@ -279,7 +279,8 @@ The user asked for this on 2026-11-18. At 390px the full-world map is about 330p
 - `DESIGN.md`: extend the Map entry with one or two sentences on mobile zoom and tap targets.
 
 **Acceptance**
-- At 390px (true mobile emulation, not a narrow desktop window): the linked countries' focus box fills the map width; Switzerland and Germany are each clearly visible; tapping the middle of Switzerland, Germany, Japan and the Singapore marker each go to the matching `?country=XX`; every linked country's tap target is at least 44×44 CSS px, except where the neighbour cap applies.
+- At 390px (true mobile emulation, not a narrow desktop window): the linked countries' focus box fills the map width; tapping the middle of Switzerland, Germany, Japan and the Singapore marker each go to the matching `?country=XX`; every linked country's tap target is at least 44×44 CSS px, except where the neighbour cap applies. The user decided on 2026-11-18 that on phones the map is an overview: small neighbouring countries (CH next to DE) may stay small, and the chips are their primary tap path.
+- Hit circles never steal taps from another country's real shape. All hit circles are drawn below all country shapes, for example in separate `tabIndex={-1}` hit-only links in a group before the shape links. Losing the hover highlight on the hit-only area is acceptable, since phones have no hover.
 - At 390px, no horizontal overflow, and the marker radius looks the same as on desktop.
 - At 1280px, the map looks and behaves exactly as at stage 5: no transform is applied, and hit-testing uses the real shapes.
 - Still works with JS disabled, and no map code ships to the client.
