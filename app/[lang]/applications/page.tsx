@@ -1,9 +1,10 @@
 import { Suspense } from "react";
 import { AnswerRow } from "@/components/answer-row";
+import { ApplicationsMap } from "@/components/applications-map";
 import { CountryFilter } from "@/components/country-filter";
 import { PageShell } from "@/components/page-shell";
-import { isCountryCode } from "@/lib/countries";
-import { openApplications } from "@/lib/data";
+import { countryName, isCountryCode } from "@/lib/countries";
+import { openApplications, openCountryCounts } from "@/lib/data";
 import { getDictionary, getLocale } from "../dictionaries";
 
 export async function generateMetadata() {
@@ -20,9 +21,11 @@ async function Listings({ searchParams }: { searchParams: Promise<{ country?: st
   const lang = await getLocale();
   const t = await getDictionary();
   const country = normalizeCountry((await searchParams).country);
-  const listings = await openApplications(100, country);
+  const [listings, { countries }] = await Promise.all([openApplications(100, country), openCountryCounts()]);
+  const labels = Object.fromEntries(countries.map(({ code }) => [code, countryName(code, lang)]));
   return (
     <>
+      <ApplicationsMap counts={countries} selected={country} lang={lang} labels={labels} />
       <CountryFilter t={t} lang={lang} active={country} />
       {listings.length ? (
         <ol className="border-b-[1.5px] border-ink">
