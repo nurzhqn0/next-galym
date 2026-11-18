@@ -137,10 +137,15 @@ export const applications = pgTable(
     status: applicationStatus("status").notNull().default("open"),
     // Ordered custom fields; only those marked public ever leave the server.
     fields: jsonb("fields").$type<AppField[]>().notNull().default([]),
+    // ISO 3166-1 alpha-2 codes the listing applies to; empty means online or any country.
+    countries: varchar("countries", { length: 2 }).array().notNull().default(sql`'{}'::varchar[]`),
     createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
     ...timestamps,
   },
-  (t) => [index("applications_status_deadline_idx").on(t.status, t.deadline)],
+  (t) => [
+    index("applications_status_deadline_idx").on(t.status, t.deadline),
+    index("applications_countries_idx").using("gin", t.countries),
+  ],
 );
 
 export const applicationSubmissions = pgTable(

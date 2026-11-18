@@ -2,16 +2,23 @@ import { cacheLife, cacheTag } from "next/cache";
 import { HttpError } from "@/lib/http";
 import type { Locale } from "@/lib/locale";
 import { countArchives, getAdminArchive, listAdminArchives, listArchives } from "@/lib/services/archives";
-import { getAdminApplication, listAdminApplications, listCategories, listListings } from "@/lib/services/applications";
+import { countryCounts, getAdminApplication, listAdminApplications, listCategories, listListings } from "@/lib/services/applications";
 import { countPublicNews, getAdminNews, listAdminNews, listPublicNews } from "@/lib/services/news";
 
 // Cached reads for pages. Admin mutations call revalidateTag with the same tags.
 
-export async function openApplications(limit: number, offset = 0) {
+export async function openApplications(limit: number, country?: string, offset = 0) {
   "use cache";
   cacheTag("applications");
   cacheLife("minutes");
-  return listListings(limit, offset);
+  return listListings(limit, offset, country);
+}
+
+export async function openCountryCounts() {
+  "use cache";
+  cacheTag("applications");
+  cacheLife("minutes");
+  return countryCounts();
 }
 
 export async function latestNews(lang: Locale, limit: number, offset = 0) {

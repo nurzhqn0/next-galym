@@ -1,0 +1,2 @@
+ALTER TABLE "applications" ADD COLUMN "countries" varchar(2)[] DEFAULT '{}'::varchar[] NOT NULL;--> statement-breakpoint
+CREATE INDEX "applications_countries_idx" ON "applications" USING gin ("countries");
