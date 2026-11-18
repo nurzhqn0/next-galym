@@ -281,6 +281,6 @@ Adds the interactive globe above the chips.
 ## Production rollout (manual, after all stages)
 
 The user approves each step explicitly:
-1. `npm run db:migrate` against production.
-2. Run the backfill dry-run against production and show its output to the user.
+1. `set -a; source .env.local; set +a; npm run db:migrate` against production. drizzle.config.ts no longer falls back to `.env.local`. 0005 is already on `main` (applied by accident on 2026-11-18), so this is a no-op unless later stages add migrations.
+2. Run the backfill dry-run against production (load `.env.local` the same way) and show its output to the user.
 3. Run `--apply`.
