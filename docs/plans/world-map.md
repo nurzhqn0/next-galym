@@ -1,6 +1,6 @@
 # World map for the applications page
 
-Goal: the public `/[lang]/applications` page gets an interactive 3D globe (React Three Fiber). Clicking a country filters the list below it to the live listings for that country. The selection lives in the URL as `?country=XX` (ISO 3166-1 alpha-2). An "Online / Any" chip (`?country=none`) shows listings that have no country.
+Goal: the public `/[lang]/applications` page gets an interactive 2D world map (server-rendered SVG). Clicking a country filters the list below it to the live listings for that country. The selection lives in the URL as `?country=XX` (ISO 3166-1 alpha-2). An "Online / Any" chip (`?country=none`) shows listings that have no country.
 
 Harness: run each stage with `/map-stage <N>`. `stage-implementer` (Sonnet 5.5, low effort) builds it. `stage-reviewer` (Opus 5.5, high effort) reviews it. The user approves each stage before the next one starts.
 
@@ -178,102 +178,78 @@ Delivers a working, JS-free filter UI. It ships on its own and stays as the acce
 
 ---
 
-## Stage 4 — 3D globe
+## Stage 4 — 2D world map
 
-Adds the interactive globe above the chips.
+The user asked for a flat 2D map instead of the 3D globe on 2026-11-18. It is server-rendered SVG: no WebGL, no three.js, and it works with JS disabled.
 
 **Deps** (exact majors):
-- `three`
-- `@react-three/fiber@^9`
-- `@react-three/drei@^10`
 - `world-atlas@^2`
 - `topojson-client@^3`
 - `d3-geo@^3`
-- dev: `@types/three`, `@types/topojson-client`, `@types/d3-geo`
-
-**Skills to read first**: `threejs-react-three-fiber`, `threejs-interaction`, `threejs-textures`, `threejs-performance`.
+- dev: `@types/topojson-client`, `@types/d3-geo`
+- Do NOT add `three`, `@react-three/*` or any client map library.
 
 **Files**
-- `components/applications-globe.tsx` (new, `"use client"`):
-  - Props: `counts: { code: string; count: number }[]`, `selected?: string`, `lang`, `labels`.
-  - **Data**:
+- `components/applications-map.tsx` (new, server component, no `"use client"`):
+  - Props: `counts: { code: string; count: number }[]`, `selected?: string`, `lang`, `labels: Record<string, string>` (code → localized name, only for codes in `counts`).
+  - **Geometry, computed once per process** (module-level cache, not per request):
     - Import `world-atlas/countries-110m.json` and convert it with `topojson-client` `feature()`.
-    - Map each feature id (numeric) to alpha-2 via the inverse of `ALPHA2_TO_NUMERIC`. Features with no mapping are drawn as land but are not pickable.
-  - **Texture**: one 2048×1024 offscreen canvas drawn with `d3-geo` `geoEquirectangular().fitSize([2048, 1024], sphere)`.
-    - Ocean: `stock-lit`.
-    - Land: `stock-deep`.
-    - Countries with listings: `ink`.
-    - Borders: 1px `ink` at low alpha.
-    - Selected or hovered: a thick `ink-deep` outline.
-    - Use it as a `THREE.CanvasTexture` (sRGB) on `<sphereGeometry args={[1, 96, 64]}>` with `<meshBasicMaterial>`, so there's no lighting.
-    - Redraw only when hover or selection changes, then set `needsUpdate`.
-  - **Picking**:
-    - A second hidden canvas, drawn the same way, encodes `featureIndex + 1` as RGB with antialiasing off (`imageSmoothingEnabled = false`; fill only, no strokes).
-    - On pointer move or click, read the R3F intersection `uv`, sample that pixel, and resolve the feature.
-    - Don't loop over polygons per event.
-  - **Controls**:
-    - drei `OrbitControls`: `enablePan={false}`, zoom clamped, damping on.
-    - Auto-rotate slowly until the first interaction. Off when `prefers-reduced-motion: reduce`.
-    - `<Canvas frameloop="demand" dpr={[1, 2]}>`. Call `invalidate()` on changes.
-  - **Hover**: a DOM tooltip, absolutely positioned over the canvas, shows the localized name and count. The cursor is a pointer only over countries that have listings.
-  - **Click**:
-    - A country with listings: `router.replace(\`?country=${code}\`, { scroll: false })`.
-    - A country without listings: no-op.
-    - Clicking the selected country again clears the filter.
-  - **On mount** with `selected`: rotate the camera to face that country.
-  - **Cleanup**: dispose the texture on unmount, and don't recreate the canvases per render.
-- `components/applications-globe-lazy.tsx` (new, `"use client"`):
-  - `next/dynamic(() => import("./applications-globe"), { ssr: false, loading: Placeholder })`.
-  - The placeholder has the same box size (no layout shift) and a static `stock-lit` circle.
-  - If WebGL is unavailable (`document.createElement("canvas").getContext("webgl2")` is null), render nothing.
-- `app/[lang]/applications/page.tsx`:
-  - Render the lazy globe above `CountryFilter`, passing the counts and current selection.
-  - Wrap the canvas in `aria-hidden="true"`; the chips are the accessible path.
-  - Height is about 420px on desktop and about 300px on mobile.
+    - Drop Antarctica (numeric id `010`).
+    - Map each numeric feature id to alpha-2 via the inverse of `ALPHA2_TO_NUMERIC`. Features with no mapping are drawn as plain land.
+    - Project with `geoEqualEarth().fitSize([960, 500], collection)`, and build path strings with `geoPath(projection).digits(1)` to keep the HTML small.
+  - **Render**: `<svg viewBox="0 0 960 500" className="w-full h-auto">`, one `<path>` per country.
+    - Land with no listings: fill `--color-stock-deep`, not interactive.
+    - Countries with listings: fill `--color-ink`, wrapped in `next/link` `<Link href={`/${lang}/applications?country=${code}`} scroll={false}>`.
+      - If the country is `selected`, the link instead goes to `/${lang}/applications` (clears the filter) and the path is filled `--color-ink-deep`.
+      - Hover/focus-visible: fill `--color-ink-deep`.
+    - Borders: stroke `--color-stock` at about 0.5px, `vector-effect: non-scaling-stroke`.
+    - Each linked country has an SVG `<title>` with "{localized name} — {count}", which gives the native hover tooltip.
+    - No ocean fill (the page `stock` background shows through). No graticule.
+  - **Accessibility**: the chips stay the accessible path. Put `aria-hidden="true"` on the `<svg>`, and `tabIndex={-1}` on the map links, so keyboard and screen-reader users don't get duplicate links.
+- `app/[lang]/applications/page.tsx`: render `<ApplicationsMap>` above `CountryFilter` inside the existing Suspense'd `Listings`, passing counts, the normalized selection, `lang` and `labels`. Build `labels` on the server only for the codes in `counts` (use `countryName`).
 - `package.json` / lockfile: the deps listed above.
 
 **Acceptance**
-- Clicking Switzerland updates the URL to `?country=CH` without a scroll jump, and the list shows EPFL.
-- Hovering Japan shows its localized name and count.
-- Clicking a grey country does nothing.
-- Clicking the selected country again clears the filter.
-- three.js is not in the server bundle or the page's initial JS; it arrives via the dynamic chunk.
+- `/en/applications` shows the map; countries with live listings are crimson and others are muted gold.
+- Clicking Switzerland goes to `?country=CH` without a scroll jump, the list shows EPFL, and Switzerland is drawn `ink-deep`.
+- Clicking Switzerland again clears the filter.
+- Clicking a country with no listings does nothing (it is not a link).
+- Hovering Japan shows the native tooltip with its localized name and count (`/ru` → Япония).
+- Works with JS disabled: the map links are plain anchors in server HTML.
+- No map JS in the client bundle: no `"use client"`, and `world-atlas` / `d3-geo` are not in any client chunk.
+- The page stays partially prerendered (◐) in the build output.
 - No console errors.
-- Navigating away and back 5 times does not trigger "Too many active WebGL contexts".
-- Idle CPU is low because of `frameloop="demand"` (no render loop after auto-rotate stops).
-- `prefers-reduced-motion` disables auto-rotate.
 
 **Gates**
 - lint
 - tsc
-- `npm run build`
-- Main session: `/run`, screenshots at 1280px and 390px, click Switzerland and Japan, check the console.
+- `set -a; source .env.test.local; set +a; npm run build`
+- Main session: `/run`, check at 1280px and 390px, click Switzerland twice, check the console.
 
 ---
 
 ## Stage 5 — Polish, performance, docs
 
 **Files**
-- `components/applications-globe*.tsx`, `app/[lang]/applications/page.tsx`:
-  - Mobile: `touch-action: pan-y` on the wrapper so vertical swipes scroll the page, and only horizontal drags rotate.
-  - Tune the height breakpoints.
-  - Confirm only `countries-110m` is bundled (no 50m or 10m).
+- `components/applications-map.tsx`, `app/[lang]/applications/page.tsx`:
+  - Mobile: at 390px the map stays readable and doesn't overflow horizontally; tune spacing above the chips.
+  - Measure the HTML weight the SVG adds to `/en/applications`. If it's over ~150 KB uncompressed, lower `digits` or simplify.
 - `docs/API.md`: the `country` query param and `countries` in the public listing shape, plus the admin create, update, import and export fields.
 - `docs/ERD.mermaid`: the `countries` column.
-- `DESIGN.md`: a short "Globe" component entry covering colors, states, and that the chips are the accessible path.
+- `DESIGN.md`: a short "Map" component entry covering colors, states, and that the chips are the accessible path.
 
 **Acceptance**
-- Mobile scroll is not hijacked by the globe.
+- No horizontal overflow at 390px.
 - Docs match the code.
 - The full test suite passes on the scratch branch.
 - `npm run build` passes.
-- In the build output, the globe JS loads only via the dynamic chunk.
+- No map code ships to the client.
 
 **Gates**
 - lint
 - tsc
 - `set -a; source .env.test.local; set +a; npm test`
-- `npm run build`
+- `set -a; source .env.test.local; set +a; npm run build`
 - Main session: `/run` screenshots. Optionally pass them to `impeccable-finish-reviewer`.
 
 ---
