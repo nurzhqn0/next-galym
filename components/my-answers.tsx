@@ -39,14 +39,13 @@ export function MyAnswers({ lang, t, logoutLabel, errorText }: { lang: string; t
       {answers.length ? (
         <ol className="border-b-[1.5px] border-ink">
           {answers.map((s, i) => {
-            const title = Object.values(s.data).find((v) => v.trim()) ?? s.formTitle;
             return (
               <li key={s.id} style={{ ["--i" as string]: Math.min(i, 5) }} className="print-in grid grid-cols-[2.5rem_1fr] gap-x-4 gap-y-2 border-t-[1.5px] border-ink py-5 md:grid-cols-[4rem_1fr_auto] md:items-center">
                 <span className="bubble" data-filled="true" aria-hidden="true">{i + 1}</span>
                 <div>
-                  <h2 className="text-xl font-bold">{title}</h2>
+                  <h2 className="text-xl font-bold">{s.title}</h2>
                   <p className="label text-ink">
-                    {s.formTitle} · {t.sent} {formatDate(s.createdAt, lang)}
+                    {s.category ? `${s.category} · ` : ""}{t.sent} {formatDate(s.createdAt, lang)}
                   </p>
                   {s.listingRemoved && <p className="mt-1 text-sm">{t.removed}</p>}
                   {s.external && <p className="mt-1 text-sm">{t.selfReported}</p>}

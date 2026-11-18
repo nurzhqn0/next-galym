@@ -1,11 +1,11 @@
 import Link from "next/link";
 import type { Dict } from "@/app/[lang]/dictionaries/en";
 
-type Tab = "news" | "archives" | "admins";
+type Tab = "news" | "archives" | "applications" | "admins";
 
 /** The admin tab row. Admins is shown to the superuser only; the page itself checks the role too. */
 export function AdminNav({ lang, t, current, superuser }: { lang: string; t: Dict["admin"]; current: Tab; superuser: boolean }) {
-  const tabs: Tab[] = superuser ? ["news", "archives", "admins"] : ["news", "archives"];
+  const tabs: Tab[] = superuser ? ["news", "archives", "applications", "admins"] : ["news", "archives", "applications"];
   return (
     <nav aria-label={t.title} className="mb-10 flex flex-wrap gap-2">
       {tabs.map((k) => (

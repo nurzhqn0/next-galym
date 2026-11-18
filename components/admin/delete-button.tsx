@@ -7,7 +7,7 @@ import { useAdminLists } from "@/lib/stores/admin-lists";
 import { alertClass, errorText, send } from "./send";
 
 /** Two steps: Delete, then "Yes, delete" or Cancel. On success, back to the list. */
-export function DeleteButton({ url, back, t }: { url: string; back: string; t: Dict["admin"] }) {
+export function DeleteButton({ url, back, t, conflict }: { url: string; back: string; t: Dict["admin"]; conflict?: string }) {
   const router = useRouter();
   const [state, setState] = useState<"idle" | "confirm" | "busy">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +22,7 @@ export function DeleteButton({ url, back, t }: { url: string; back: string; t: D
       router.refresh();
       return;
     }
-    setError(errorText(res.status, t.errors));
+    setError(errorText(res.status, t.errors, conflict));
     setState("idle");
   }
 
