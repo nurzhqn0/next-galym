@@ -233,13 +233,24 @@ The user asked for a flat 2D map instead of the 3D globe on 2026-11-18. It is se
 **Files**
 - `components/applications-map.tsx`, `app/[lang]/applications/page.tsx`:
   - Mobile: at 390px the map stays readable and doesn't overflow horizontally; tune spacing above the chips.
-  - Measure the HTML weight the SVG adds to `/en/applications`. If it's over ~150 KB uncompressed, lower `digits` or simplify.
+  - Measure the HTML weight the SVG adds to `/en/applications`. Count both the SVG markup and the path strings repeated in the RSC flight payload. Stage 4 measured about 135 KB of SVG plus a duplicate in the payload, and the whole page at about 616 KB uncompressed. Bring the map's share under ~150 KB total by lowering `digits` and/or simplifying the topology.
+  - Hover and selected fills: add a fill transition of about 150ms that respects reduced motion (`motion-safe:transition-[fill] duration-150`), per DESIGN.md.
+  - Small countries missing from `countries-110m` (Singapore 702 at least): if such a country has listings, draw a small `ink` circle marker at its projected centroid (a hardcoded `[lon, lat]` for those codes is fine), with the same link, `<title>` and selected styling as a country path.
+  - Type import: add `@types/topojson-specification` to devDependencies, since `applications-map.tsx` imports from it.
+- Carry-over fixes from earlier reviews (each one small):
+  - `lib/countries.ts` ALIASES: add `"сша": "US"`, `"оаэ": "AE"`, `"великобритания": "GB"`. Add a test.
+  - `lib/application-import.ts` `countriesOf`: resolve each `;`/`,` part on its own. If `isCountryCode(part.toUpperCase())`, take the code; otherwise `parseCountries(part)`. Merge and dedupe, so `"CH; Japan"` and `"ch"` both work, but whole-text names containing a comma still match first. Add tests.
+  - `tests/applications.test.ts`: make the `toContain` checks robust to more than 100 live rows on scratch (filter by the test `PREFIX` or raise the limit).
+  - `components/country-filter.tsx`: make the country chip hrefs absolute (`/${lang}/applications?country=${code}`).
 - `docs/API.md`: the `country` query param and `countries` in the public listing shape, plus the admin create, update, import and export fields.
 - `docs/ERD.mermaid`: the `countries` column.
 - `DESIGN.md`: a short "Map" component entry covering colors, states, and that the chips are the accessible path.
 
 **Acceptance**
 - No horizontal overflow at 390px.
+- The map's share of `/en/applications` (SVG plus flight payload) is under ~150 KB uncompressed.
+- Singapore shows as a clickable marker on the map.
+- The carry-over fixes are in place, with tests where listed.
 - Docs match the code.
 - The full test suite passes on the scratch branch.
 - `npm run build` passes.
