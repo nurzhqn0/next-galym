@@ -176,6 +176,9 @@ Square corners (0 radius) on fields, inputs, comb cells. Borders are 2.5px crims
 ### Answer row
 - Numbered list item with a 2.5px top rule, big numeral, bold title, label-face subtitle, a definition list of up to four fields, and an apply control. Prints in with a 520ms clip-path wipe, staggered 90ms per row, only when motion is allowed.
 
+### Map
+- Server-rendered SVG world map above the country chips. Countries with live listings are `ink` and link to `?country=XX`; others are `stock-deep`. Hover, focus and the selected country use `ink-deep`, with a 150ms fill transition only when motion is allowed. Tiny countries missing from the base map (Singapore) get an `ink` circle marker. The map is `aria-hidden` and has no tab stops: the chips below are the accessible, keyboard path. Below `sm` the map zooms (CSS transform, no JS) to the linked countries, markers keep their desktop size, and each linked country gets an invisible hit circle of up to 44px across, capped by its nearest neighbour.
+
 ### Crosshair
 - 22px registration mark (crossed 2px lines plus ring) at the corners of the hero panel.
 

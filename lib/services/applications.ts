@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, ilike, isNull, or, sql } from "drizzle-orm";
+import { and, arrayContains, asc, count, desc, eq, gte, ilike, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { applications, applicationSubmissions, users } from "@/lib/db/schema";
@@ -13,6 +13,7 @@ import {
   valueFits,
 } from "@/lib/application-fields";
 import { toCsv } from "@/lib/application-import";
+import { isCountryCode } from "@/lib/countries";
 
 type Application = typeof applications.$inferSelect;
 
@@ -26,21 +27,44 @@ const publicShape = (a: Application) => ({
   category: a.category,
   applyUrl: a.applyUrl,
   deadline: a.deadline,
+  countries: a.countries,
   fields: publicFields(a.fields),
 });
 
 const liveWhere = () =>
   and(eq(applications.status, "open"), or(isNull(applications.deadline), gte(applications.deadline, todayAlmaty())));
 
-export async function listListings(limit: number, offset: number) {
+/** An alpha-2 code, or "none" for listings without a country. Anything else filters nothing. */
+const countryWhere = (country?: string) => {
+  if (country === "none") return sql`cardinality(${applications.countries}) = 0`;
+  if (country && isCountryCode(country)) return arrayContains(applications.countries, [country]);
+};
+
+export async function listListings(limit: number, offset: number, country?: string) {
   const rows = await db
     .select()
     .from(applications)
-    .where(liveWhere())
+    .where(and(liveWhere(), countryWhere(country)))
     .orderBy(sql`${applications.deadline} asc nulls last`, asc(applications.title))
     .limit(limit)
     .offset(offset);
   return rows.map(publicShape);
+}
+
+export async function countryCounts() {
+  const rows = await db
+    .select({ countries: applications.countries })
+    .from(applications)
+    .where(liveWhere());
+  const tally = new Map<string, number>();
+  let none = 0;
+  for (const { countries } of rows) {
+    if (!countries.length) none++;
+    for (const code of countries) tally.set(code, (tally.get(code) ?? 0) + 1);
+  }
+  const list = [...tally].map(([code, count]) => ({ code, count }));
+  list.sort((a, b) => b.count - a.count || a.code.localeCompare(b.code));
+  return { countries: list, none };
 }
 
 export async function getListing(id: string) {
@@ -196,9 +220,17 @@ const base = z.object({
   deadline: z.preprocess(emptyToNull, z.iso.date().nullish()),
   status: z.enum(["open", "closed"]),
   fields: fieldList,
+  countries: z.preprocess(
+    (v) => (Array.isArray(v) ? v.map((c) => (typeof c === "string" ? c.toUpperCase() : c)) : v),
+    z
+      .array(z.string().refine(isCountryCode))
+      .max(30)
+      .transform((a) => [...new Set(a)])
+      .optional(),
+  ),
 });
 
-export const applicationCreate = base.partial({ category: true, applyUrl: true, deadline: true, status: true, fields: true });
+export const applicationCreate = base.partial({ category: true, applyUrl: true, deadline: true, status: true, fields: true, countries: true });
 export const applicationUpdate = base.partial();
 export const applicationImport = z.object({ items: z.array(applicationCreate).min(1).max(500) });
 
@@ -211,6 +243,7 @@ const values = (input: Create, createdBy: string) => ({
   deadline: input.deadline ?? null,
   status: input.status ?? ("open" as const),
   fields: input.fields ?? [],
+  countries: input.countries ?? [],
   createdBy,
 });
 
@@ -223,6 +256,7 @@ export async function listAdminApplications(limit: number, offset: number) {
         category: applications.category,
         deadline: applications.deadline,
         status: applications.status,
+        countries: applications.countries,
         updatedAt: applications.updatedAt,
         submissions: sql<number>`(select count(*)::int from ${applicationSubmissions} where ${applicationSubmissions.applicationId} = ${applications.id})`,
       })

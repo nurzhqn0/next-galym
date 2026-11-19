@@ -1,30 +1,42 @@
-import { AnswerRow } from "@/components/answer-row";
+import { Suspense } from "react";
+import { ApplicationsBrowser } from "@/components/applications-browser";
+import { ApplicationsMap } from "@/components/applications-map";
 import { PageShell } from "@/components/page-shell";
-import { openApplications } from "@/lib/data";
+import { countryName, normalizeCountry } from "@/lib/countries";
+import { openApplications, openCountryCounts } from "@/lib/data";
 import { getDictionary, getLocale } from "../dictionaries";
 
 export async function generateMetadata() {
   return { title: (await getDictionary()).nav.applications };
 }
 
-export default async function ApplicationsPage() {
+async function Listings({ searchParams }: { searchParams: Promise<{ country?: string | string[] }> }) {
   const lang = await getLocale();
   const t = await getDictionary();
-  const listings = await openApplications(100);
+  const country = normalizeCountry((await searchParams).country);
+  const [listings, { countries, none }] = await Promise.all([openApplications(100), openCountryCounts()]);
+  const labels = Object.fromEntries(countries.map(({ code }) => [code, countryName(code, lang)]));
+  return (
+    <ApplicationsBrowser
+      listings={listings}
+      counts={countries}
+      none={none}
+      initial={country}
+      lang={lang}
+      t={t}
+      labels={labels}
+      map={<ApplicationsMap counts={countries} lang={lang} labels={labels} />}
+    />
+  );
+}
+
+export default async function ApplicationsPage({ searchParams }: { searchParams: Promise<{ country?: string | string[] }> }) {
+  const t = await getDictionary();
   return (
     <PageShell title={t.open.title} intro={t.hero.sub}>
-      {listings.length ? (
-        <ol className="border-b-[1.5px] border-ink">
-          {listings.map((l, i) => (
-            <AnswerRow key={l.id} n={i + 1} listing={l} t={t} lang={lang} i={Math.min(i, 5)} wide />
-          ))}
-        </ol>
-      ) : (
-        <div className="rounded-2xl border-[1.5px] border-ink bg-stock-lit p-6">
-          <p className="text-xl font-bold">{t.open.empty}</p>
-          <p className="mt-1">{t.open.emptyHint}</p>
-        </div>
-      )}
+      <Suspense fallback={<div className="min-h-[50vh]" />}>
+        <Listings searchParams={searchParams} />
+      </Suspense>
     </PageShell>
   );
 }

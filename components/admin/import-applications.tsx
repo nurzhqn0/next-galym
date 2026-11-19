@@ -9,10 +9,10 @@ import { useAdminLists } from "@/lib/stores/admin-lists";
 import { useHydrated } from "../use-hydrated";
 import { alertClass, send } from "./send";
 
-const EXAMPLE_CSV = `Title,Category,Deadline,Link,Status,Location,Coverage,Phone (private)
-Summer Internship,Internships,31.12.2027,https://example.org/apply,open,Switzerland,Full + stipend,+7 700 000 00 00
-Research Grant,Grants,2027-03-15,,open,Online,"Up to $5,000",
-Old Program,Internships,,https://example.org/old,closed,Japan,Flights only,`;
+const EXAMPLE_CSV = `Title,Category,Deadline,Link,Status,Country,Location,Coverage,Phone (private)
+Summer Internship,Internships,31.12.2027,https://example.org/apply,open,CH,Switzerland,Full + stipend,+7 700 000 00 00
+Research Grant,Grants,2027-03-15,,open,,Online,"Up to $5,000",
+Old Program,Internships,,https://example.org/old,closed,JP,Japan,Flights only,`;
 
 const EXAMPLE_MD = `## Summer Internship
 - Category: Internships
@@ -177,6 +177,12 @@ export function ImportApplications({ lang, t }: { lang: string; t: Dict["admin"]
                         <p className="label text-ink">
                           {[d.item.category, d.item.deadline ? `${a.deadline} ${toDmy(d.item.deadline)}` : a.noDeadline, a.statuses[d.item.status], d.item.applyUrl].filter(Boolean).join(" · ")}
                         </p>
+                        {d.item.countries.length > 0 && <p className="label text-sm">{a.countries}: {d.item.countries.join(", ")}</p>}
+                        {d.item.unknownCountries.map((c) => (
+                          <p key={c} className="text-sm font-medium">
+                            {a.countryUnknown.replace("{c}", c)}
+                          </p>
+                        ))}
                         {d.item.fields.length > 0 && (
                           <dl className="grid gap-x-6 gap-y-1 text-base sm:grid-cols-[auto_1fr]">
                             {d.item.fields.map((f) => (

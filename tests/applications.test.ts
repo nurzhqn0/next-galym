@@ -2,7 +2,9 @@ import { afterAll, describe, expect, it } from "vitest";
 import { todayAlmaty } from "@/lib/application-fields";
 import {
   applicationCreate,
+  countryCounts,
   applicationImport,
+  applicationUpdate,
   applyTo,
   deleteApplication,
   getListing,
@@ -99,5 +101,57 @@ describe("applications", () => {
     expect(applicationCreate.safeParse({ title: "x", fields: [{ label: "Site", type: "url", value: "nope", public: true }] }).success).toBe(false);
     expect(applicationCreate.safeParse({ title: "x", fields: [{ label: "A", type: "text", value: "1", public: true }, { label: "a", type: "text", value: "2", public: true }] }).success).toBe(false);
     expect(applicationCreate.safeParse({ title: "x", applyUrl: "javascript:alert(1)" }).success).toBe(false);
+  });
+
+  it("filters by country and by none, and leaves closed or expired listings out", async () => {
+    const { admin } = await setup();
+    const ch = await makeApplication(admin, { countries: ["CH"] });
+    const both = await makeApplication(admin, applicationCreate.parse({ title: `${PREFIX} both`, countries: ["sg", "JP", "jp"] }));
+    const online = await makeApplication(admin, {});
+    const closed = await makeApplication(admin, { countries: ["CH"], status: "closed" });
+    const past = await makeApplication(admin, { countries: ["CH"], deadline: inDays(-1) });
+    const closedNone = await makeApplication(admin, { status: "closed" });
+    const chIds = (await listListings(1000, 0, "CH")).map((l) => l.id);
+    expect(chIds).toContain(ch.id);
+    expect(chIds).not.toContain(both.id);
+    expect(chIds).not.toContain(closed.id);
+    expect(chIds).not.toContain(past.id);
+    expect((await listListings(1000, 0, "XX")).map((l) => l.id)).toContain(online.id);
+    expect(both.countries).toEqual(["SG", "JP"]);
+    const noneIds = (await listListings(1000, 0, "none")).map((l) => l.id);
+    expect(noneIds).toContain(online.id);
+    expect(noneIds).not.toContain(ch.id);
+    expect(noneIds).not.toContain(closedNone.id);
+  });
+
+  it("counts live listings per country", async () => {
+    const { admin } = await setup();
+    const before = await countryCounts();
+    const get = (c: Awaited<ReturnType<typeof countryCounts>>, code: string) =>
+      c.countries.find((x) => x.code === code)?.count ?? 0;
+    await makeApplication(admin, { countries: ["NZ", "FJ"] });
+    await makeApplication(admin, { countries: ["NZ"] });
+    await makeApplication(admin, {});
+    await makeApplication(admin, { countries: ["NZ"], status: "closed" });
+    await makeApplication(admin, { countries: ["NZ"], deadline: inDays(-1) });
+    await makeApplication(admin, { status: "closed" });
+    const after = await countryCounts();
+    expect(get(after, "NZ") - get(before, "NZ")).toBe(2);
+    expect(get(after, "FJ") - get(before, "FJ")).toBe(1);
+    expect(after.none - before.none).toBe(1);
+    const sorted = [...after.countries].sort((a, b) => b.count - a.count || a.code.localeCompare(b.code));
+    expect(after.countries).toEqual(sorted);
+  });
+
+  it("dedupes countries on update", async () => {
+    const { app } = await setup();
+    const input = applicationUpdate.parse({ countries: ["jp", "JP"] });
+    const row = await updateApplication(app.id, input);
+    expect(row.countries).toEqual(["JP"]);
+  });
+
+  it("rejects an invalid country code on create", () => {
+    expect(applicationCreate.safeParse({ title: "x", countries: ["ZZ"] }).success).toBe(false);
+    expect(applicationCreate.safeParse({ title: "x", countries: ["ch"] }).success).toBe(true);
   });
 });

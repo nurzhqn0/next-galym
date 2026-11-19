@@ -52,6 +52,27 @@ describe("drafts", () => {
     expect(d.warnings).toHaveLength(1);
   });
 
+  it("parses a Country column and warns on unknown names", () => {
+    const d = draft("Title,Country\nA,Singapore & Japan; Narnia")[0];
+    expect(d.item!.countries).toEqual(["SG", "JP"]);
+    expect(d.item!.unknownCountries).toEqual(["Narnia"]);
+  });
+
+  it("accepts codes and names mixed in one cell", () => {
+    expect(draft('Title,Country\nA,"CH; Japan"')[0].item!.countries).toEqual(["CH", "JP"]);
+    expect(draft("Title,Country\nA,ch")[0].item!.countries).toEqual(["CH"]);
+  });
+
+  it("derives countries from Location and keeps it as a field", () => {
+    const it = draft("Title,Location\nA,Switzerland")[0].item!;
+    expect(it.countries).toEqual(["CH"]);
+    expect(it.fields).toEqual([{ label: "Location", type: "text", value: "Switzerland", public: true }]);
+  });
+
+  it("a Country column wins over Location", () => {
+    expect(draft("Title,Country,Location\nA,Japan,Switzerland")[0].item!.countries).toEqual(["JP"]);
+  });
+
   it("a row without a title is an error with no item", () => {
     const [d] = draft("Title,Level\n,PhD");
     expect(d.item).toBeNull();
@@ -68,11 +89,12 @@ describe("drafts", () => {
 
   it("export then import gives the same applications", () => {
     const apps = [
-      { title: "A, one", category: "Grants", applyUrl: "https://a.org/", deadline: "2027-01-05", status: "open", fields: [{ label: "Level", type: "text" as const, value: "PhD", public: true }, { label: "Phone", type: "text" as const, value: "x y", public: false }] },
-      { title: "B", category: null, applyUrl: null, deadline: null, status: "closed", fields: [{ label: "Level", type: "text" as const, value: "MSc", public: true }] },
+      { title: "A, one", category: "Grants", applyUrl: "https://a.org/", deadline: "2027-01-05", status: "open", countries: ["SG", "JP"], fields: [{ label: "Level", type: "text" as const, value: "PhD", public: true }, { label: "Phone", type: "text" as const, value: "x y", public: false }] },
+      { title: "B", category: null, applyUrl: null, deadline: null, status: "closed", countries: [] as string[], fields: [{ label: "Level", type: "text" as const, value: "MSc", public: true }] },
     ];
     const back = parseImport(toCsv(apps), "a.csv").drafts.map((d) => d.item!);
     expect(back.map((b) => [b.title, b.category, b.applyUrl, b.deadline, b.status])).toEqual(apps.map((a) => [a.title, a.category, a.applyUrl, a.deadline, a.status]));
+    expect(back.map((b) => b.countries)).toEqual([["SG", "JP"], []]);
     expect(back[0].fields).toEqual(apps[0].fields);
     expect(back[1].fields).toEqual(apps[1].fields);
   });

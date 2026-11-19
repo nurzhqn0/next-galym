@@ -1,8 +1,7 @@
-import { config } from "dotenv";
 import { defineConfig } from "drizzle-kit";
 
-config({ path: ".env.local" });
-
+// No .env.local fallback: load the target env explicitly (e.g. `node --env-file=.env.local`)
+// so a failed env load can never silently migrate production.
 export default defineConfig({
   dialect: "postgresql",
   schema: "./lib/db/schema.ts",
