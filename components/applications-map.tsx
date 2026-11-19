@@ -77,9 +77,10 @@ export function ApplicationsMap({
   const round1 = (v: number) => Math.round(v * 10) / 10;
   const href = (code: string) => `/${lang}/applications?country=${code}`;
   const item = (code: string, shape: (fill: string) => React.ReactNode) => {
+    const o = pts.get(code);
     const fill = `fill-ink group-hover:fill-ink-deep group-focus-visible:fill-ink-deep motion-safe:transition-[fill] duration-150`;
     return (
-      <Link key={code} href={href(code)} data-code={code} prefetch={false} scroll={false} tabIndex={-1} className="group">
+      <Link key={code} href={href(code)} data-code={code} prefetch={false} scroll={false} tabIndex={-1} className="group outline-none! motion-safe:transition-transform duration-150" style={{ transformOrigin: o && `${round1(o[0])}px ${round1(o[1])}px` }}>
         <title>{`${labels[code] ?? code} — ${countOf.get(code)}`}</title>
         {shape(fill)}
       </Link>
@@ -101,7 +102,7 @@ export function ApplicationsMap({
         <path d={restD} fill="var(--color-stock-deep)" />
         <path d={bordersD} fill="none" {...stroke} />
         {[...pts].map(([code, [x, y]]) => (
-          <Link key={code} href={href(code)} data-code={code} prefetch={false} scroll={false} tabIndex={-1}>
+          <Link key={code} href={href(code)} data-code={code} prefetch={false} scroll={false} tabIndex={-1} className="outline-none!">
             <circle cx={round1(x)} cy={round1(y)} r={round1(hitRadius(code, [x, y]))} fill="transparent" className="sm:pointer-events-none" />
           </Link>
         ))}

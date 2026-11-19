@@ -90,7 +90,7 @@ export function ApplicationsBrowser({ listings, counts, none, initial, lang, t, 
   return (
     <div ref={root}>
       {country && /^[A-Z]{2}$/.test(country) && (
-        <style>{`[data-map] a[data-code="${country}"] :is(path,circle):not([fill="transparent"]){fill:var(--color-ink-deep)}`}</style>
+        <style>{`[data-map] a[data-code="${country}"] :is(path,circle):not([fill="transparent"]){fill:var(--color-ink-deep)}[data-map] a.group[data-code="${country}"]{transform:scale(1.1)}`}</style>
       )}
       <div
         onClickCapture={(e) => {
