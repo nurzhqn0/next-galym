@@ -331,6 +331,13 @@ The user asked for this on 2026-11-18: switching countries was too slow. Every c
 - `set -a; source .env.test.local; set +a; npm run build`
 - Main session: CDP check. Click chips and map countries at 1280px and 390px, check timing and that no navigation requests happen, check Back, and run a JS-disabled check.
 
+**As built (2026-11-19)**
+- The store syncs from `useSearchParams()` rather than a manual `popstate` listener. It covers pushState, Back/Forward and direct loads.
+- Next serves a soft navigation to the same page (the header/footer "Applications" link) from cache without updating `useSearchParams`. While the browser component is mounted, a capture-phase document click listener handles same-page links itself (store plus pushState).
+- An `aria-live` region announces "Open applications: N" (new `open.count` key in en/ru/kk), because client-side filtering no longer triggers a page-load announcement.
+- `normalizeCountry` moved to `lib/countries.ts` and is shared by page and client. That puts the alpha-2 table in the client chunk, which was accepted.
+- Known limits: the page filters the first 100 live listings. With JS disabled, the streamed `Suspense` content stays hidden; this predates stage 7.
+
 ---
 
 ## Production rollout (manual, after all stages)

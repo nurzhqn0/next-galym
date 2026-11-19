@@ -29,6 +29,12 @@ export const ALPHA2_TO_NUMERIC: Record<string, string> = {
 
 export const isCountryCode = (code: string) => Object.hasOwn(ALPHA2_TO_NUMERIC, code);
 
+/** An uppercase valid code, "none", or undefined. */
+export function normalizeCountry(value: string | string[] | null | undefined) {
+  const v = (Array.isArray(value) ? value[0] : value)?.toUpperCase();
+  return v === "NONE" ? "none" : v && isCountryCode(v) ? v : undefined;
+}
+
 export function countryName(code: string, lang: string): string {
   return new Intl.DisplayNames([lang], { type: "region" }).of(code) ?? code;
 }

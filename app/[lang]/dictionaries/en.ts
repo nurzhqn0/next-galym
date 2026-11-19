@@ -26,6 +26,7 @@ const en = {
     all: "All applications",
     online: "Online / Any",
     emptyCountry: "No open applications for this country.",
+    count: "Open applications",
     mapLabel: "Filter applications by country",
     details: "Details",
     applying: "Sending",

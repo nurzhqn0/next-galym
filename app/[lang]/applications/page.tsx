@@ -1,9 +1,8 @@
 import { Suspense } from "react";
-import { AnswerRow } from "@/components/answer-row";
+import { ApplicationsBrowser } from "@/components/applications-browser";
 import { ApplicationsMap } from "@/components/applications-map";
-import { CountryFilter } from "@/components/country-filter";
 import { PageShell } from "@/components/page-shell";
-import { countryName, isCountryCode } from "@/lib/countries";
+import { countryName, normalizeCountry } from "@/lib/countries";
 import { openApplications, openCountryCounts } from "@/lib/data";
 import { getDictionary, getLocale } from "../dictionaries";
 
@@ -11,35 +10,23 @@ export async function generateMetadata() {
   return { title: (await getDictionary()).nav.applications };
 }
 
-/** An uppercase valid code, "none", or undefined. */
-function normalizeCountry(value: string | string[] | undefined) {
-  const v = (Array.isArray(value) ? value[0] : value)?.toUpperCase();
-  return v === "NONE" ? "none" : v && isCountryCode(v) ? v : undefined;
-}
-
 async function Listings({ searchParams }: { searchParams: Promise<{ country?: string | string[] }> }) {
   const lang = await getLocale();
   const t = await getDictionary();
   const country = normalizeCountry((await searchParams).country);
-  const [listings, { countries }] = await Promise.all([openApplications(100, country), openCountryCounts()]);
+  const [listings, { countries, none }] = await Promise.all([openApplications(100), openCountryCounts()]);
   const labels = Object.fromEntries(countries.map(({ code }) => [code, countryName(code, lang)]));
   return (
-    <>
-      <ApplicationsMap counts={countries} selected={country} lang={lang} labels={labels} />
-      <CountryFilter t={t} lang={lang} active={country} />
-      {listings.length ? (
-        <ol className="border-b-[1.5px] border-ink">
-          {listings.map((l, i) => (
-            <AnswerRow key={l.id} n={i + 1} listing={l} t={t} lang={lang} i={Math.min(i, 5)} wide />
-          ))}
-        </ol>
-      ) : (
-        <div className="rounded-2xl border-[1.5px] border-ink bg-stock-lit p-6">
-          <p className="text-xl font-bold">{country && country !== "none" ? t.open.emptyCountry : t.open.empty}</p>
-          <p className="mt-1">{t.open.emptyHint}</p>
-        </div>
-      )}
-    </>
+    <ApplicationsBrowser
+      listings={listings}
+      counts={countries}
+      none={none}
+      initial={country}
+      lang={lang}
+      t={t}
+      labels={labels}
+      map={<ApplicationsMap counts={countries} lang={lang} labels={labels} />}
+    />
   );
 }
 

@@ -33,12 +33,10 @@ const restCache = new Map<string, string>();
 
 export function ApplicationsMap({
   counts,
-  selected,
   lang,
   labels,
 }: {
   counts: { code: string; count: number }[];
-  selected?: string;
   lang: string;
   labels: Record<string, string>;
 }) {
@@ -77,19 +75,18 @@ export function ApplicationsMap({
     return Math.min(22 / ((288 / 960) * k), near);
   };
   const round1 = (v: number) => Math.round(v * 10) / 10;
-  const href = (code: string) => `/${lang}/applications${code === selected ? "" : `?country=${code}`}`;
+  const href = (code: string) => `/${lang}/applications?country=${code}`;
   const item = (code: string, shape: (fill: string) => React.ReactNode) => {
-    const active = code === selected;
-    const fill = `${active ? "fill-ink-deep" : "fill-ink"} group-hover:fill-ink-deep group-focus-visible:fill-ink-deep motion-safe:transition-[fill] duration-150`;
+    const fill = `fill-ink group-hover:fill-ink-deep group-focus-visible:fill-ink-deep motion-safe:transition-[fill] duration-150`;
     return (
-      <Link key={code} href={href(code)} scroll={false} tabIndex={-1} className="group">
+      <Link key={code} href={href(code)} data-code={code} prefetch={false} scroll={false} tabIndex={-1} className="group">
         <title>{`${labels[code] ?? code} — ${countOf.get(code)}`}</title>
         {shape(fill)}
       </Link>
     );
   };
   return (
-    <svg viewBox="0 0 960 500" className="mb-6 h-auto w-full" aria-hidden="true">
+    <svg data-map viewBox="0 0 960 500" className="mb-6 h-auto w-full" aria-hidden="true">
       <g
         className="max-sm:[transform:translate(calc(var(--tx)*1px),calc(var(--ty)*1px))_scale(var(--k))]"
         style={
@@ -104,7 +101,7 @@ export function ApplicationsMap({
         <path d={restD} fill="var(--color-stock-deep)" />
         <path d={bordersD} fill="none" {...stroke} />
         {[...pts].map(([code, [x, y]]) => (
-          <Link key={code} href={href(code)} scroll={false} tabIndex={-1}>
+          <Link key={code} href={href(code)} data-code={code} prefetch={false} scroll={false} tabIndex={-1}>
             <circle cx={round1(x)} cy={round1(y)} r={round1(hitRadius(code, [x, y]))} fill="transparent" className="sm:pointer-events-none" />
           </Link>
         ))}

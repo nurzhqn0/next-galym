@@ -7,11 +7,11 @@ import { countPublicNews, getAdminNews, listAdminNews, listPublicNews } from "@/
 
 // Cached reads for pages. Admin mutations call revalidateTag with the same tags.
 
-export async function openApplications(limit: number, country?: string, offset = 0) {
+export async function openApplications(limit: number, offset = 0) {
   "use cache";
   cacheTag("applications");
   cacheLife("minutes");
-  return listListings(limit, offset, country);
+  return listListings(limit, offset);
 }
 
 export async function openCountryCounts() {
