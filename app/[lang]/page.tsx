@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { AnswerRow } from "@/components/answer-row";
+import { ApplicationsExplorer } from "@/components/answer-row";
 import { ArchiveCard } from "@/components/archive-card";
 import { NewsCarousel } from "@/components/news-carousel";
 import { currentUser } from "@/lib/auth/guard";
@@ -9,6 +9,9 @@ import { getDictionary, getLocale } from "./dictionaries";
 
 const pad = "pl-[calc(var(--track)+1rem)] pr-4 md:pl-[calc(var(--track)+2rem)] md:pr-8";
 const wrap = "mx-auto max-w-[1240px]";
+const title = "display text-4xl md:text-6xl";
+const bigBtn = "field label min-h-14 px-7 text-lg";
+const corners = ["-left-3 -top-3", "-right-3 -top-3", "-bottom-3 -left-3", "-bottom-3 -right-3"];
 
 /** Renders one or the other once the session is known. Reads the cookie, so wrap it in Suspense. */
 async function BySession({ signedIn, signedOut }: { signedIn: React.ReactNode; signedOut: React.ReactNode }) {
@@ -17,26 +20,28 @@ async function BySession({ signedIn, signedOut }: { signedIn: React.ReactNode; s
 
 export default async function Home() {
   const lang = await getLocale();
-  const t = await getDictionary();
-  const [listings, news, archives] = await Promise.all([
-    openApplications(3),
+  const [t, listings, news, archives] = await Promise.all([
+    getDictionary(),
+    openApplications(100),
     latestNews(lang, 9),
     latestArchives(lang, 3),
   ]);
 
-  const heading = (
-    <h2 id="news-h" className="display text-4xl md:text-6xl">
-      {t.news.title}
-    </h2>
+  const newsHeading = <h2 id="news-h" className={title}>{t.news.title}</h2>;
+
+  // Two buttons side by side: the first solid, the second outlined.
+  const buttons = (primary: [string, string], secondary: [string, string]) => (
+    <div className="flex flex-wrap gap-3">
+      <Link href={`/${lang}/${primary[0]}`} className={`${bigBtn} field-solid`}>{primary[1]}</Link>
+      <Link href={`/${lang}/${secondary[0]}`} className={bigBtn}>{secondary[1]}</Link>
+    </div>
   );
 
   // The login band's layout: heading and text on the left, buttons on the right.
   const band = (text: React.ReactNode, actions: React.ReactNode) => (
     <div className={`${wrap} grid gap-8 md:grid-cols-[1.4fr_1fr] md:items-end md:gap-16`}>
       <div>
-        <h2 id="login-h" className="display max-w-[18ch] text-4xl md:text-6xl">
-          {t.login.title}
-        </h2>
+        <h2 id="login-h" className={`${title} max-w-[18ch]`}>{t.login.title}</h2>
         {text}
       </div>
       {actions}
@@ -49,100 +54,55 @@ export default async function Home() {
       <section className={`relative ${pad} pb-20 pt-10 md:pt-14`} aria-labelledby="hero">
         <div className={`${wrap} grid gap-12 lg:grid-cols-[1.15fr_1fr] lg:items-start lg:gap-14`}>
           <div>
-            <h1 id="hero" className="display text-[clamp(3.25rem,10.5vw,6rem)] text-ink">
-              {t.hero.headline}
-            </h1>
+            <h1 id="hero" className="display text-[clamp(3.25rem,10.5vw,6rem)] text-ink">{t.hero.headline}</h1>
             <p className="mt-6 max-w-[40ch] text-xl md:text-2xl">{t.hero.sub}</p>
-            <div className="mt-8">
-              <Link href={`/${lang}/applications`} className="field field-solid label min-h-14 px-7 text-lg">
-                {t.hero.cta}
-              </Link>
-            </div>
+            <Link href={`/${lang}/applications`} className={`${bigBtn} field-solid mt-8 inline-flex`}>
+              {t.hero.cta}
+            </Link>
           </div>
 
           <div className="relative border-[2.5px] border-ink bg-stock-lit p-5 md:p-7">
-            <span className="crosshair -left-3 -top-3" aria-hidden="true" />
-            <span className="crosshair -right-3 -top-3" aria-hidden="true" />
-            <span className="crosshair -bottom-3 -left-3" aria-hidden="true" />
-            <span className="crosshair -bottom-3 -right-3" aria-hidden="true" />
+            {corners.map((c) => <span key={c} className={`crosshair ${c}`} aria-hidden="true" />)}
             <h2 className="display text-4xl">{t.open.title}</h2>
-            {listings.length > 0 ? (
-              <ol className="mt-4">
-                {listings.map((l, i) => (
-                  <AnswerRow key={l.id} n={i + 1} listing={l} t={t} lang={lang} i={i} />
-                ))}
-              </ol>
-            ) : (
-              <div className="mt-5 grid gap-4 border-t-[2.5px] border-ink pt-6">
-                <span className="flex gap-2" aria-hidden="true">
-                  {["A", "B", "C", "D"].map((c) => (
-                    <span key={c} className="bubble" data-filled="false">
-                      {c}
-                    </span>
-                  ))}
-                </span>
-                <div>
-                  <p className="text-xl font-bold">{t.open.empty}</p>
-                  <p className="mt-1">{t.open.emptyHint}</p>
-                </div>
-              </div>
-            )}
-            <div className="mt-6">
-              <Link href={`/${lang}/applications`} className="field label">
-                {t.open.all}
-              </Link>
-            </div>
+            <ApplicationsExplorer listings={listings} t={t} lang={lang} />
+            <Link href={`/${lang}/applications`} className="field label mt-6 inline-flex">{t.open.all}</Link>
           </div>
         </div>
       </section>
 
       {/* About us */}
       <section id="about" className={`${pad} scroll-mt-4 pb-20`} aria-labelledby="about-h">
-        <div className={`${wrap} rule pt-10`}>
-          <div className="grid gap-10 md:grid-cols-[1fr_1.1fr] md:gap-16">
-            <div>
-              <h2 id="about-h" className="display text-4xl md:text-6xl">
-                {t.about.title}
-              </h2>
-              <p className="mt-6 max-w-[32ch] text-2xl font-bold leading-snug">{t.about.lead}</p>
-              <p className="mt-4 max-w-[52ch]">{t.about.pending}</p>
-              <p className="mt-6">
-                <span className="stamp">{t.about.draft}</span>
-              </p>
-            </div>
-            <div>
-              <h3 className="label mb-4 text-xl">{t.about.stepsTitle}</h3>
-              <ol className="grid gap-3">
-                {t.about.steps.map((s, i) => (
-                  <li key={s} className="flex items-center gap-4 border-[2.5px] border-ink bg-stock-lit p-3">
-                    <span className="bubble" data-filled="false" aria-hidden="true">
-                      {i + 1}
-                    </span>
-                    <span className="text-lg">{s}</span>
-                  </li>
-                ))}
-              </ol>
-            </div>
+        <div className={`${wrap} rule grid gap-10 pt-10 md:grid-cols-[1fr_1.1fr] md:gap-16`}>
+          <div>
+            <h2 id="about-h" className={title}>{t.about.title}</h2>
+            <p className="mt-6 max-w-[32ch] text-2xl font-bold leading-snug">{t.about.lead}</p>
+            <p className="mt-4 max-w-[52ch]">{t.about.pending}</p>
+            <p className="mt-6"><span className="stamp">{t.about.draft}</span></p>
+          </div>
+          <div>
+            <h3 className="label mb-4 text-xl">{t.about.stepsTitle}</h3>
+            <ol className="grid gap-3">
+              {t.about.steps.map((s, i) => (
+                <li key={s} className="flex items-center gap-4 border-[2.5px] border-ink bg-stock-lit p-3">
+                  <span className="bubble" data-filled="false" aria-hidden="true">{i + 1}</span>
+                  <span className="text-lg">{s}</span>
+                </li>
+              ))}
+            </ol>
           </div>
         </div>
       </section>
 
       {/* Results: score fields stay empty until real figures are supplied */}
       <section id="results" className={`${pad} scroll-mt-4 pb-20`} aria-labelledby="results-h">
-        <div className={`${wrap} rule pt-10`}>
-          <div className="grid gap-8 md:grid-cols-[1fr_1.1fr] md:gap-16">
-            <h2 id="results-h" className="display text-4xl md:text-6xl">
-              {t.results.title}
-            </h2>
-            <div className="grid gap-5">
-              <div className="comb comb-lg" role="img" aria-label={t.results.cell}>
-                <span /> <span /> <span /> <span />
-              </div>
-              <p className="max-w-[44ch]">{t.results.note}</p>
-              <p>
-                <span className="stamp">{t.results.pending}</span>
-              </p>
+        <div className={`${wrap} rule grid gap-8 pt-10 md:grid-cols-[1fr_1.1fr] md:gap-16`}>
+          <h2 id="results-h" className={title}>{t.results.title}</h2>
+          <div className="grid gap-5">
+            <div className="comb comb-lg" role="img" aria-label={t.results.cell}>
+              <span /> <span /> <span /> <span />
             </div>
+            <p className="max-w-[44ch]">{t.results.note}</p>
+            <p><span className="stamp">{t.results.pending}</span></p>
           </div>
         </div>
       </section>
@@ -150,24 +110,20 @@ export default async function Home() {
       {/* News */}
       <section id="news" className={`${pad} scroll-mt-4 pb-20`} aria-labelledby="news-h">
         <div className={`${wrap} rule pt-10`}>
-          {news.length > 0 ? (
+          {news.length ? (
             <NewsCarousel
-              heading={heading}
+              heading={newsHeading}
               lang={lang}
               labels={{ prev: t.news.prev, next: t.news.next, page: t.news.page }}
               items={news}
             />
           ) : (
             <>
-              <div className="mb-6">{heading}</div>
+              <div className="mb-6">{newsHeading}</div>
               <p className="text-lg">{t.news.empty}</p>
             </>
           )}
-          <div className="mt-6">
-            <Link href={`/${lang}/news`} className="field label">
-              {t.news.all}
-            </Link>
-          </div>
+          <Link href={`/${lang}/news`} className="field label mt-6 inline-flex">{t.news.all}</Link>
         </div>
       </section>
 
@@ -176,27 +132,10 @@ export default async function Home() {
         {/* One boundary for text and buttons, so they arrive together; the fallback holds the signed-out size. */}
         <Suspense fallback={band(<div className="mt-5 min-h-[3.5rem]" />, <div className="min-h-14" />)}>
           <BySession
-            signedIn={band(
-              null,
-              <div className="flex flex-wrap gap-3">
-                <Link href={`/${lang}/account`} className="field field-solid label min-h-14 px-7 text-lg">
-                  {t.nav.account}
-                </Link>
-                <Link href={`/${lang}/applications`} className="field label min-h-14 px-7 text-lg">
-                  {t.account.findOne}
-                </Link>
-              </div>,
-            )}
+            signedIn={band(null, buttons(["account", t.nav.account], ["applications", t.account.findOne]))}
             signedOut={band(
               <p className="mt-5 max-w-[48ch] text-lg">{t.login.text}</p>,
-              <div className="flex flex-wrap gap-3">
-                <Link href={`/${lang}/login`} className="field field-solid label min-h-14 px-7 text-lg">
-                  {t.login.login}
-                </Link>
-                <Link href={`/${lang}/register`} className="field label min-h-14 px-7 text-lg">
-                  {t.login.register}
-                </Link>
-              </div>,
+              buttons(["login", t.login.login], ["register", t.login.register]),
             )}
           />
         </Suspense>
@@ -205,25 +144,17 @@ export default async function Home() {
       {/* Archive */}
       <section id="archive" className={`${pad} scroll-mt-4 py-20`} aria-labelledby="archive-h">
         <div className={wrap}>
-          <h2 id="archive-h" className="display mb-6 text-4xl md:text-6xl">
-            {t.archive.title}
-          </h2>
+          <h2 id="archive-h" className={`${title} mb-6`}>{t.archive.title}</h2>
           {archives.length ? (
             <ul className="grid gap-5 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
               {archives.map((a) => (
-                <li key={a.id}>
-                  <ArchiveCard item={a} lang={lang} t={t.archive} />
-                </li>
+                <li key={a.id}><ArchiveCard item={a} lang={lang} t={t.archive} /></li>
               ))}
             </ul>
           ) : (
             <p className="text-lg">{t.archive.empty}</p>
           )}
-          <div className="mt-6">
-            <Link href={`/${lang}/archives`} className="field label">
-              {t.archive.all}
-            </Link>
-          </div>
+          <Link href={`/${lang}/archives`} className="field label mt-6 inline-flex">{t.archive.all}</Link>
         </div>
       </section>
     </>
